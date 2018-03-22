@@ -10,10 +10,7 @@ IMAGE_INSTALL = "packagegroup-core-boot \
     kernel-modules \
 "
 
-IMAGE_INSTALL_append = " nano git cmake qtbase qtchooser dbus connman"
-
-IMAGE_INSTALL_append = " kernel-devsrc fbtft-driver"
-
+IMAGE_INSTALL_append = " nano git cmake qtbase qtchooser dbus connman packagegroup-core-ssh-openssh xterm"
 
 inherit distro_features_check
 REQUIRED_DISTRO_FEATURES = "x11"
