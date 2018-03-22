@@ -1,0 +1,6 @@
+# Author: Mustafa Ozcelikors <mozcelikors@gmail.com>
+
+define KFEATURE_DESCRIPTION "Enable Fbtft driver for Raspberry Pi in kernel space"
+define KFEATURE_COMPATIBILITY all
+
+kconf hardware fbtftenable.cfg
