@@ -1,5 +1,5 @@
 # Path to the CMake file to process.
-OECMAKE_SOURCEPATH ??= "${S}"
+OECMAKE_SOURCEPATH ?= "${S}"
 
 DEPENDS_prepend = "cmake-native "
 B = "${WORKDIR}/build"
@@ -7,23 +7,6 @@ B = "${WORKDIR}/build"
 # We need to unset CCACHE otherwise cmake gets too confused
 CCACHE = ""
 
-# What CMake generator to use.
-# The supported options are "Unix Makefiles" or "Ninja".
-OECMAKE_GENERATOR ?= "Ninja"
-
-python() {
-    generator = d.getVar("OECMAKE_GENERATOR")
-    if generator == "Unix Makefiles":
-        args = "-G 'Unix Makefiles' -DCMAKE_MAKE_PROGRAM=" + d.getVar("MAKE")
-        d.setVar("OECMAKE_GENERATOR_ARGS", args)
-        d.setVarFlag("do_compile", "progress", "percent")
-    elif generator == "Ninja":
-        d.appendVar("DEPENDS", " ninja-native")
-        d.setVar("OECMAKE_GENERATOR_ARGS", "-G Ninja -DCMAKE_MAKE_PROGRAM=ninja")
-        d.setVarFlag("do_compile", "progress", "outof:^\[(\d+)/(\d+)\]\s+")
-    else:
-        bb.fatal("Unknown CMake Generator %s" % generator)
-}
 # C/C++ Compiler (without cpu arch/tune arguments)
 OECMAKE_C_COMPILER ?= "`echo ${CC} | sed 's/^\([^ ]*\).*/\1/'`"
 OECMAKE_CXX_COMPILER ?= "`echo ${CXX} | sed 's/^\([^ ]*\).*/\1/'`"
@@ -48,14 +31,6 @@ OECMAKE_FIND_ROOT_PATH_MODE_PROGRAM_class-native = "BOTH"
 
 EXTRA_OECMAKE_append = " ${PACKAGECONFIG_CONFARGS}"
 
-EXTRA_OECMAKE_BUILD_prepend_task-compile = "${PARALLEL_MAKE} "
-EXTRA_OECMAKE_BUILD_prepend_task-install = "${PARALLEL_MAKEINST} "
-
-OECMAKE_TARGET_COMPILE ?= "all"
-OECMAKE_TARGET_INSTALL ?= "install"
-
-FILES_${PN}-dev += "${libdir}/cmake ${datadir}/cmake"
-
 # CMake expects target architectures in the format of uname(2),
 # which do not always match TARGET_ARCH, so all the necessary
 # conversions should happen here.
@@ -67,15 +42,11 @@ def map_target_arch_to_uname_arch(target_arch):
     return target_arch
 
 cmake_do_generate_toolchain_file() {
-	if [ "${BUILD_SYS}" = "${HOST_SYS}" ]; then
-		cmake_crosscompiling="set( CMAKE_CROSSCOMPILING FALSE )"
-	fi
 	cat > ${WORKDIR}/toolchain.cmake <<EOF
 # CMake system name must be something like "Linux".
 # This is important for cross-compiling.
-$cmake_crosscompiling
 set( CMAKE_SYSTEM_NAME `echo ${TARGET_OS} | sed -e 's/^./\u&/' -e 's/^\(Linux\).*/\1/'` )
-set( CMAKE_SYSTEM_PROCESSOR ${@map_target_arch_to_uname_arch(d.getVar('TARGET_ARCH'))} )
+set( CMAKE_SYSTEM_PROCESSOR ${@map_target_arch_to_uname_arch(d.getVar('TARGET_ARCH', True))} )
 set( CMAKE_C_COMPILER ${OECMAKE_C_COMPILER} )
 set( CMAKE_CXX_COMPILER ${OECMAKE_CXX_COMPILER} )
 set( CMAKE_ASM_COMPILER ${OECMAKE_C_COMPILER} )
@@ -132,25 +103,24 @@ cmake_do_configure() {
 
 	# Just like autotools cmake can use a site file to cache result that need generated binaries to run
 	if [ -e ${WORKDIR}/site-file.cmake ] ; then
-		oecmake_sitefile="-C ${WORKDIR}/site-file.cmake"
+		OECMAKE_SITEFILE=" -C ${WORKDIR}/site-file.cmake"
 	else
-		oecmake_sitefile=
+		OECMAKE_SITEFILE=""
 	fi
 
 	cmake \
-	  ${OECMAKE_GENERATOR_ARGS} \
-	  $oecmake_sitefile \
+	  ${OECMAKE_SITEFILE} \
 	  ${OECMAKE_SOURCEPATH} \
 	  -DCMAKE_INSTALL_PREFIX:PATH=${prefix} \
-	  -DCMAKE_INSTALL_BINDIR:PATH=${@os.path.relpath(d.getVar('bindir'), d.getVar('prefix'))} \
-	  -DCMAKE_INSTALL_SBINDIR:PATH=${@os.path.relpath(d.getVar('sbindir'), d.getVar('prefix'))} \
-	  -DCMAKE_INSTALL_LIBEXECDIR:PATH=${@os.path.relpath(d.getVar('libexecdir'), d.getVar('prefix'))} \
+	  -DCMAKE_INSTALL_BINDIR:PATH=${@os.path.relpath(d.getVar('bindir', True), d.getVar('prefix', True))} \
+	  -DCMAKE_INSTALL_SBINDIR:PATH=${@os.path.relpath(d.getVar('sbindir', True), d.getVar('prefix', True))} \
+	  -DCMAKE_INSTALL_LIBEXECDIR:PATH=${@os.path.relpath(d.getVar('libexecdir', True), d.getVar('prefix', True))} \
 	  -DCMAKE_INSTALL_SYSCONFDIR:PATH=${sysconfdir} \
-	  -DCMAKE_INSTALL_SHAREDSTATEDIR:PATH=${@os.path.relpath(d.getVar('sharedstatedir'), d.  getVar('prefix'))} \
+	  -DCMAKE_INSTALL_SHAREDSTATEDIR:PATH=${@os.path.relpath(d.getVar('sharedstatedir', True), d.  getVar('prefix', True))} \
 	  -DCMAKE_INSTALL_LOCALSTATEDIR:PATH=${localstatedir} \
-	  -DCMAKE_INSTALL_LIBDIR:PATH=${@os.path.relpath(d.getVar('libdir'), d.getVar('prefix'))} \
-	  -DCMAKE_INSTALL_INCLUDEDIR:PATH=${@os.path.relpath(d.getVar('includedir'), d.getVar('prefix'))} \
-	  -DCMAKE_INSTALL_DATAROOTDIR:PATH=${@os.path.relpath(d.getVar('datadir'), d.getVar('prefix'))} \
+	  -DCMAKE_INSTALL_LIBDIR:PATH=${@os.path.relpath(d.getVar('libdir', True), d.getVar('prefix', True))} \
+	  -DCMAKE_INSTALL_INCLUDEDIR:PATH=${@os.path.relpath(d.getVar('includedir', True), d.getVar('prefix', True))} \
+	  -DCMAKE_INSTALL_DATAROOTDIR:PATH=${@os.path.relpath(d.getVar('datadir', True), d.getVar('prefix', True))} \
 	  -DCMAKE_INSTALL_SO_NO_EXE=0 \
 	  -DCMAKE_TOOLCHAIN_FILE=${WORKDIR}/toolchain.cmake \
 	  -DCMAKE_VERBOSE_MAKEFILE=1 \
@@ -159,17 +129,15 @@ cmake_do_configure() {
 	  -Wno-dev
 }
 
-cmake_runcmake_build() {
-	bbnote ${DESTDIR:+DESTDIR=${DESTDIR} }VERBOSE=1 cmake --build '${B}' "$@" -- ${EXTRA_OECMAKE_BUILD}
-	eval ${DESTDIR:+DESTDIR=${DESTDIR} }VERBOSE=1 cmake --build '${B}' "$@" -- ${EXTRA_OECMAKE_BUILD}
-}
-
+do_compile[progress] = "percent"
 cmake_do_compile()  {
-	cmake_runcmake_build --target ${OECMAKE_TARGET_COMPILE}
+	cd ${B}
+	base_do_compile VERBOSE=1
 }
 
 cmake_do_install() {
-	DESTDIR='${D}' cmake_runcmake_build --target ${OECMAKE_TARGET_INSTALL}
+	cd ${B}
+	oe_runmake 'DESTDIR=${D}' install
 }
 
 EXPORT_FUNCTIONS do_configure do_compile do_install do_generate_toolchain_file

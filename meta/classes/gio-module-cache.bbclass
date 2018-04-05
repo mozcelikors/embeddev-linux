@@ -1,4 +1,4 @@
-PACKAGE_WRITE_DEPS += "qemu-native"
+DEPENDS += "qemu-native"
 inherit qemu
 
 GIO_MODULE_PACKAGES ??= "${PN}"
@@ -17,21 +17,21 @@ fi
 }
 
 python populate_packages_append () {
-    packages = d.getVar('GIO_MODULE_PACKAGES').split()
+    packages = d.getVar('GIO_MODULE_PACKAGES', True).split()
 
     for pkg in packages:
         bb.note("adding gio-module-cache postinst and postrm scripts to %s" % pkg)
 
-        postinst = d.getVar('pkg_postinst_%s' % pkg)
+        postinst = d.getVar('pkg_postinst_%s' % pkg, True)
         if not postinst:
             postinst = '#!/bin/sh\n'
-        postinst += d.getVar('gio_module_cache_common')
+        postinst += d.getVar('gio_module_cache_common', True)
         d.setVar('pkg_postinst_%s' % pkg, postinst)
 
-        postrm = d.getVar('pkg_postrm_%s' % pkg)
+        postrm = d.getVar('pkg_postrm_%s' % pkg, True)
         if not postrm:
             postrm = '#!/bin/sh\n'
-        postrm += d.getVar('gio_module_cache_common')
+        postrm += d.getVar('gio_module_cache_common', True)
         d.setVar('pkg_postrm_%s' % pkg, postrm)
 }
 

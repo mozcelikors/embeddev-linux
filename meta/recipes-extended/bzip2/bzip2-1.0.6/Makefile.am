@@ -48,8 +48,7 @@ runtest:
 	else echo "FAIL: sample3 decompress"; fi
 
 install-ptest:
-	sed  -n '/^runtest:/,/^install-ptest:/{/^install-ptest:/!p}' \
-           $(srcdir)/Makefile.am      > $(DESTDIR)/Makefile
+	cp $(srcdir)/Makefile		$(DESTDIR)/
 	cp $(srcdir)/sample1.ref	$(DESTDIR)/
 	cp $(srcdir)/sample2.ref	$(DESTDIR)/
 	cp $(srcdir)/sample3.ref	$(DESTDIR)/

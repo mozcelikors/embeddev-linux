@@ -4,7 +4,7 @@ BUGTRACKER = "https://bugs.freedesktop.org/enter_bug.cgi?product=xorg"
 SECTION = "x11/fonts"
 LICENSE = "MIT-X"
 
-DEPENDS = " encodings font-alias font-util-native"
+DEPENDS = " encodings font-alias font-util-native mkfontdir-native mkfontscale-native"
 RDEPENDS_${PN} = "encodings font-util font-alias"
 
 XORG_PN = "${BPN}"
@@ -18,6 +18,7 @@ inherit autotools pkgconfig distro_features_check
 
 # The mkfontscale-native requires x11 in DISTRO_FEATURES
 REQUIRED_DISTRO_FEATURES = "x11"
+REQUIRED_DISTRO_FEATURES_class-native = ""
 
 EXTRA_OEMAKE += "FCCACHE=/bin/true UTIL_DIR=${STAGING_DIR_TARGET}\$\(MAPFILES_PATH\)"
 
@@ -30,7 +31,6 @@ do_install_append() {
 
 FILES_${PN} += " ${libdir}/X11/fonts ${datadir}"
 
-PACKAGE_WRITE_DEPS += "mkfontdir-native mkfontscale-native"
 pkg_postinst_${PN} () {
         for fontdir in `find $D/usr/lib/X11/fonts -type d`; do
                 mkfontdir $fontdir

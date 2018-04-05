@@ -28,6 +28,8 @@ SRC_URI = "http://linux-pam.org/library/Linux-PAM-${PV}.tar.bz2 \
 SRC_URI[md5sum] = "da4b2289b7cfb19583d54e9eaaef1c3a"
 SRC_URI[sha256sum] = "241aed1ef522f66ed672719ecf2205ec513fd0075ed80cda8e086a5b1a01d1bb"
 
+SRC_URI_append_libc-uclibc = " file://use-utmpx.patch"
+
 SRC_URI_append_libc-musl = " file://0001-Add-support-for-defining-missing-funcitonality.patch \
                              file://include_paths_header.patch \
                            "
@@ -60,7 +62,7 @@ FILES_${PN}-xtests = "${datadir}/Linux-PAM/xtests"
 PACKAGES_DYNAMIC += "^${MLPREFIX}pam-plugin-.*"
 
 def get_multilib_bit(d):
-    baselib = d.getVar('baselib') or ''
+    baselib = d.getVar('baselib', True) or ''
     return baselib.replace('lib', '')
 
 libpam_suffix = "suffix${@get_multilib_bit(d)}"
@@ -90,31 +92,31 @@ RRECOMMENDS_${PN}_class-native = ""
 python populate_packages_prepend () {
     def pam_plugin_append_file(pn, dir, file):
         nf = os.path.join(dir, file)
-        of = d.getVar('FILES_' + pn)
+        of = d.getVar('FILES_' + pn, True)
         if of:
             nf = of + " " + nf
         d.setVar('FILES_' + pn, nf)
 
     def pam_plugin_hook(file, pkg, pattern, format, basename):
-        pn = d.getVar('PN')
-        libpam_suffix = d.getVar('libpam_suffix')
+        pn = d.getVar('PN', True)
+        libpam_suffix = d.getVar('libpam_suffix', True)
 
-        rdeps = d.getVar('RDEPENDS_' + pkg)
+        rdeps = d.getVar('RDEPENDS_' + pkg, True)
         if rdeps:
             rdeps = rdeps + " " + pn + "-" + libpam_suffix
         else:
             rdeps = pn + "-" + libpam_suffix
         d.setVar('RDEPENDS_' + pkg, rdeps)
 
-        provides = d.getVar('RPROVIDES_' + pkg)
+        provides = d.getVar('RPROVIDES_' + pkg, True)
         if provides:
             provides = provides + " " + pkg + "-" + libpam_suffix
         else:
             provides = pkg + "-" + libpam_suffix
         d.setVar('RPROVIDES_' + pkg, provides)
 
-    mlprefix = d.getVar('MLPREFIX') or ''
-    dvar = d.expand('${WORKDIR}/package')
+    mlprefix = d.getVar('MLPREFIX', True) or ''
+    dvar = bb.data.expand('${WORKDIR}/package', d, True)
     pam_libdir = d.expand('${base_libdir}/security')
     pam_sbindir = d.expand('${sbindir}')
     pam_filterdir = d.expand('${base_libdir}/security/pam_filter')
@@ -151,8 +153,11 @@ do_install() {
 	fi
 }
 
-inherit distro_features_check
-REQUIRED_DISTRO_FEATURES = "pam"
+python do_pam_sanity () {
+    if not bb.utils.contains('DISTRO_FEATURES', 'pam', True, False, d):
+        bb.warn("Building libpam but 'pam' isn't in DISTRO_FEATURES, PAM won't work correctly")
+}
+addtask pam_sanity before do_configure
 
 BBCLASSEXTEND = "nativesdk native"
 

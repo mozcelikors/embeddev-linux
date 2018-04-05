@@ -12,8 +12,6 @@ SRC_URI = "${KERNELORG_MIRROR}/linux/utils/kernel/pcmcia/${BP}.tar.xz"
 
 S = "${WORKDIR}/pcmciautils-${PV}"
 
-inherit pkgconfig
-
 export HOSTCC = "${BUILD_CC}"
 export etcdir = "${sysconfdir}"
 export sbindir = "${base_sbindir}"

@@ -3,6 +3,8 @@ DESCRIPTION = "SDK type target for standalone tarball containing packages define
                This recipe is almost the same as buildtools-tarball"
 SUMMARY = "Standalone tarball for test systems with missing software"
 LICENSE = "MIT"
+LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d690 \
+                    file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
 
 TEST_EXPORT_SDK_PACKAGES ??= ""
 
@@ -10,13 +12,7 @@ TOOLCHAIN_TARGET_TASK ?= ""
 
 TOOLCHAIN_HOST_TASK ?= "${TEST_EXPORT_SDK_PACKAGES}"
 
-MULTIMACH_TARGET_SYS = "${SDK_ARCH}-nativesdk${SDK_VENDOR}-${SDK_OS}"
-PACKAGE_ARCH = "${SDK_ARCH}_${SDK_OS}"
-PACKAGE_ARCHS = ""
-TARGET_ARCH = "none"
-TARGET_OS = "none"
-
-SDK_PACKAGE_ARCHS += "testexport-tools-${SDKPKGSUFFIX}"
+SDK_PACKAGE_ARCHS += "tesexport-tools-${SDKPKGSUFFIX}"
 
 TOOLCHAIN_OUTPUTNAME ?= "${TEST_EXPORT_SDK_NAME}"
 
@@ -28,15 +24,7 @@ EXCLUDE_FROM_WORLD = "1"
 
 inherit meta
 inherit populate_sdk
-inherit toolchain-scripts-base
-inherit nopackages
-
-deltask install
-deltask populate_sysroot
-
-do_populate_sdk[stamp-extra-info] = "${PACKAGE_ARCH}"
-
-REAL_MULTIMACH_TARGET_SYS = "none"
+inherit toolchain-scripts
 
 create_sdk_files_append () {
 	rm -f ${SDK_OUTPUT}/${SDKPATH}/site-config-*

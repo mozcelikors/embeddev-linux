@@ -22,8 +22,6 @@ live_dev_name=${live_dev_name#\/dev/}
 case $live_dev_name in
     mmcblk*)
     ;;
-    nvme*)
-    ;;
     *)
         live_dev_name=${live_dev_name%%[0-9]*}
     ;;
@@ -148,8 +146,7 @@ swap_start=$((rootfs_end))
 # 2) they are detected asynchronously (need rootwait)
 rootwait=""
 part_prefix=""
-if [ ! "${device#/dev/mmcblk}" = "${device}" ] || \
-   [ ! "${device#/dev/nvme}" = "${device}" ]; then
+if [ ! "${device#/dev/mmcblk}" = "${device}" ]; then
     part_prefix="p"
     rootwait="rootwait"
 fi
@@ -185,13 +182,6 @@ echo "Creating swap partition on $swap"
 parted ${device} mkpart swap linux-swap $swap_start 100%
 
 parted ${device} print
-
-echo "Waiting for device nodes..."
-C=0
-while [ $C -ne 3 ] && [ ! -e $bootfs  -o ! -e $rootfs -o ! -e $swap ]; do
-    C=$(( C + 1 ))
-    sleep 1
-done
 
 echo "Formatting $bootfs to vfat..."
 mkfs.vfat $bootfs
@@ -244,37 +234,32 @@ if [ -f /run/media/$1/EFI/BOOT/grub.cfg ]; then
     sed -i "/initrd /d" $GRUBCFG
     # Delete any LABEL= strings
     sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
-    # Replace root= and add additional standard boot options
-    # We use root as a sentinel value, as vmlinuz is no longer guaranteed
-    sed -i "s/ root=[^ ]*/ root=PARTUUID=$root_part_uuid rw $rootwait quiet /g" $GRUBCFG
+    # Delete any root= strings
+    sed -i "s/ root=[^ ]*/ /g" $GRUBCFG
+    # Add the root= and other standard boot options
+    sed -i "s@linux /vmlinuz *@linux /vmlinuz root=PARTUUID=$root_part_uuid rw $rootwait quiet @" $GRUBCFG
 fi
 
 if [ -d /run/media/$1/loader ]; then
     rootuuid=$(blkid -o value -s PARTUUID ${rootfs})
-    SYSTEMDBOOT_CFGS="/boot/loader/entries/*.conf"
-    # copy config files for systemd-boot
+    GUMMIBOOT_CFGS="/boot/loader/entries/*.conf"
+    # copy config files for gummiboot
     cp -dr /run/media/$1/loader /boot
     # delete the install entry
     rm -f /boot/loader/entries/install.conf
     # delete the initrd lines
-    sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
+    sed -i "/initrd /d" $GUMMIBOOT_CFGS
     # delete any LABEL= strings
-    sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+    sed -i "s/ LABEL=[^ ]*/ /" $GUMMIBOOT_CFGS
     # delete any root= strings
-    sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+    sed -i "s/ root=[^ ]*/ /" $GUMMIBOOT_CFGS
     # add the root= and other standard boot options
-    sed -i "s@options *@options root=PARTUUID=$rootuuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
+    sed -i "s@options *@options root=PARTUUID=$rootuuid rw $rootwait quiet @" $GUMMIBOOT_CFGS
 fi
 
 umount /tgt_root
 
-# Copy kernel artifacts. To add more artifacts just add to types
-# For now just support kernel types already being used by something in OE-core
-for types in bzImage zImage vmlinux vmlinuz fitImage; do
-    for kernel in `find /run/media/$1/ -name $types*`; do
-        cp $kernel /boot
-    done
-done
+cp /run/media/$1/vmlinuz /boot
 
 umount /boot
 

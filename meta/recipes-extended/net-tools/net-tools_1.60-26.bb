@@ -37,7 +37,9 @@ UPSTREAM_CHECK_URI = "${DEBIAN_MIRROR}/main/n/net-tools/"
 
 inherit gettext
 
-do_patch[depends] += "quilt-native:do_populate_sysroot"
+do_patch[depends] = "quilt-native:do_populate_sysroot"
+
+LDFLAGS_append_libc-uclibc = " -lintl "
 
 # The Makefile is lame, no parallel build
 PARALLEL_MAKE = ""
@@ -73,31 +75,24 @@ do_configure() {
 	# we pre-generate desired options and copy to source directory instead
 	cp ${WORKDIR}/net-tools-config.h    ${S}/config.h
 	cp ${WORKDIR}/net-tools-config.make ${S}/config.make
-
-	if [ "${USE_NLS}" = "no" ]; then
-		sed -i -e 's/^I18N=1/# I18N=1/' ${S}/config.make
-	fi
 }
 
 do_compile() {
 	# net-tools use COPTS/LOPTS to allow adding custom options
-	oe_runmake COPTS="$CFLAGS" LOPTS="$LDFLAGS"
+	export COPTS="$CFLAGS"
+	export LOPTS="$LDFLAGS"
+	unset CFLAGS
+	unset LDFLAGS
+
+	oe_runmake
 }
 
 do_install() {
-	# We don't need COPTS or LOPTS, but let's be consistent.
-	oe_runmake COPTS="$CFLAGS" LOPTS="$LDFLAGS" 'BASEDIR=${D}' install
-
-	if [ "${base_bindir}" != "/bin" ]; then
-		mkdir -p ${D}/${base_bindir}
-		mv ${D}/bin/* ${D}/${base_bindir}/
-		rmdir ${D}/bin
-	fi
-	if [ "${base_sbindir}" != "/sbin" ]; then
-		mkdir ${D}/${base_sbindir}
-		mv ${D}/sbin/* ${D}/${base_sbindir}/
-		rmdir ${D}/sbin
-	fi
+	export COPTS="$CFLAGS"
+	export LOPTS="$LDFLAGS"
+	unset CFLAGS
+	unset LDFLAGS
+	oe_runmake 'BASEDIR=${D}' install
 }
 
 inherit update-alternatives
@@ -106,17 +101,15 @@ base_sbindir_progs = "arp ifconfig ipmaddr iptunnel mii-tool nameif plipconfig r
 base_bindir_progs  = "dnsdomainname domainname hostname netstat nisdomainname ypdomainname"
 
 ALTERNATIVE_${PN} = "${base_sbindir_progs} ${base_bindir_progs}"
-ALTERNATIVE_${PN}-doc += "hostname.1 dnsdomainname.1"
+ALTERNATIVE_${PN}-doc += "hostname.1"
 ALTERNATIVE_LINK_NAME[hostname.1] = "${mandir}/man1/hostname.1"
-ALTERNATIVE_LINK_NAME[dnsdomainname.1] = "${mandir}/man1/dnsdomainname.1"
 ALTERNATIVE_PRIORITY[hostname.1] = "10"
 
 python __anonymous() {
-	for prog in d.getVar('base_sbindir_progs').split():
-		d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_sbindir'), prog))
-	for prog in d.getVar('base_bindir_progs').split():
-		d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_bindir'), prog))
+	for prog in d.getVar('base_sbindir_progs', True).split():
+		d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_sbindir', True), prog))
+	for prog in d.getVar('base_bindir_progs', True).split():
+		d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_bindir', True), prog))
 }
 ALTERNATIVE_PRIORITY = "100"
 
-BBCLASSEXTEND = "native nativesdk"

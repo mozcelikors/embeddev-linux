@@ -107,30 +107,19 @@ do_kernel_metadata() {
 				cmp "${WORKDIR}/defconfig" "${S}/arch/${ARCH}/configs/${KBUILD_DEFCONFIG}"
 				if [ $? -ne 0 ]; then
 					bbwarn "defconfig detected in WORKDIR. ${KBUILD_DEFCONFIG} skipped"
-				else
-					cp -f ${S}/arch/${ARCH}/configs/${KBUILD_DEFCONFIG} ${WORKDIR}/defconfig
 				fi
 			else
 				cp -f ${S}/arch/${ARCH}/configs/${KBUILD_DEFCONFIG} ${WORKDIR}/defconfig
+				sccs="${WORKDIR}/defconfig"
 			fi
-			sccs="${WORKDIR}/defconfig"
 		else
-			bbfatal "A KBUILD_DEFCONFIG '${KBUILD_DEFCONFIG}' was specified, but not present in the source tree"
+			bbfatal "A KBUILD_DECONFIG '${KBUILD_DEFCONFIG}' was specified, but not present in the source tree"
 		fi
 	fi
 
-	sccs_from_src_uri="${@" ".join(find_sccs(d))}"
+	sccs="$sccs ${@" ".join(find_sccs(d))}"
 	patches="${@" ".join(find_patches(d))}"
 	feat_dirs="${@" ".join(find_kernel_feature_dirs(d))}"
-
-	# a quick check to make sure we don't have duplicate defconfigs
-	# If there's a defconfig in the SRC_URI, did we also have one from
-	# the KBUILD_DEFCONFIG processing above ?
-	if [ -n "$sccs" ]; then
-	    # we did have a defconfig from above. remove any that might be in the src_uri
-	    sccs_from_src_uri=$(echo $sccs_from_src_uri | awk '{ if ($0!="defconfig") { print $0 } }' RS=' ')
-	fi
-	sccs="$sccs $sccs_from_src_uri"
 
 	# check for feature directories/repos/branches that were part of the
 	# SRC_URI. If they were supplied, we convert them into include directives
@@ -154,19 +143,12 @@ do_kernel_metadata() {
 
 	# expand kernel features into their full path equivalents
 	bsp_definition=$(spp ${includes} --find -DKMACHINE=${KMACHINE} -DKTYPE=${LINUX_KERNEL_TYPE})
-	if [ -z "$bsp_definition" ]; then
-		echo "$sccs" | grep -q defconfig
-		if [ $? -ne 0 ]; then
-			bbfatal_log "Could not locate BSP definition for ${KMACHINE}/${LINUX_KERNEL_TYPE} and no defconfig was provided"
-		fi
-	fi
 	meta_dir=$(kgit --meta)
 
 	# run1: pull all the configuration fragments, no matter where they come from
 	elements="`echo -n ${bsp_definition} ${sccs} ${patches} ${KERNEL_FEATURES}`"
 	if [ -n "${elements}" ]; then
-		echo "${bsp_definition}" > ${S}/${meta_dir}/bsp_definition
-		scc --force -o ${S}/${meta_dir}:cfg,merge,meta ${includes} ${bsp_definition} ${sccs} ${patches} ${KERNEL_FEATURES}
+		scc --force -o ${S}/${meta_dir}:cfg,meta ${includes} ${bsp_definition} ${sccs} ${patches} ${KERNEL_FEATURES}
 		if [ $? -ne 0 ]; then
 			bbfatal_log "Could not generate configuration queue for ${KMACHINE}."
 		fi
@@ -183,7 +165,6 @@ do_kernel_metadata() {
 }
 
 do_patch() {
-	set +e
 	cd ${S}
 
 	check_git_config
@@ -195,19 +176,6 @@ do_patch() {
 			bberror "Could not apply patches for ${KMACHINE}."
 			bbfatal_log "Patch failures can be resolved in the linux source directory ${S})"
 		fi
-	fi
-
-	if [ -f "${meta_dir}/merge.queue" ]; then
-		# we need to merge all these branches
-		for b in $(cat ${meta_dir}/merge.queue); do
-			git show-ref --verify --quiet refs/heads/${b}
-			if [ $? -eq 0 ]; then
-				bbnote "Merging branch ${b}"
-				git merge -q --no-ff -m "Merge branch ${b}" ${b}
-			else
-				bbfatal "branch ${b} does not exist, cannot merge"
-			fi
-		done
 	fi
 }
 
@@ -247,7 +215,6 @@ do_kernel_checkout() {
 		fi
 		rm -f .gitignore
 		git init
-		check_git_config
 		git add .
 		git commit -q -m "baseline commit: creating repo for ${PN}-${PV}"
 		git clean -d -f
@@ -273,7 +240,6 @@ do_kernel_checkout[dirs] = "${S}"
 addtask kernel_checkout before do_kernel_metadata after do_unpack
 addtask kernel_metadata after do_validate_branches do_unpack before do_patch
 do_kernel_metadata[depends] = "kern-tools-native:do_populate_sysroot"
-do_validate_branches[depends] = "kern-tools-native:do_populate_sysroot"
 
 do_kernel_configme[dirs] += "${S} ${B}"
 do_kernel_configme() {
@@ -299,8 +265,7 @@ do_kernel_configme() {
 
 	meta_dir=$(kgit --meta)
 	configs="$(scc --configs -o ${meta_dir})"
-	if [ $? -ne 0 ]; then
-		bberror "${configs}"
+	if [ -z "${configs}" ]; then
 		bbfatal_log "Could not find configuration queue (${meta_dir}/config.queue)"
 	fi
 
@@ -321,11 +286,11 @@ python do_kernel_configcheck() {
     # if KMETA isn't set globally by a recipe using this routine, we need to
     # set the default to 'meta'. Otherwise, kconf_check is not passed a valid
     # meta-series for processing
-    kmeta = d.getVar("KMETA") or "meta"
+    kmeta = d.getVar( "KMETA", True ) or "meta"
     if not os.path.exists(kmeta):
         kmeta = "." + kmeta
 
-    pathprefix = "export PATH=%s:%s; " % (d.getVar('PATH'), "${S}/scripts/util/")
+    pathprefix = "export PATH=%s:%s; " % (d.getVar('PATH', True), "${S}/scripts/util/")
 
     cmd = d.expand("scc --configs -o ${S}/.kernel-meta")
     ret, configs = oe.utils.getstatusoutput("%s%s" % (pathprefix, cmd))
@@ -333,8 +298,8 @@ python do_kernel_configcheck() {
     cmd = d.expand("cd ${S}; kconf_check --report -o ${S}/%s/cfg/ ${B}/.config ${S} %s" % (kmeta,configs))
     ret, result = oe.utils.getstatusoutput("%s%s" % (pathprefix, cmd))
 
-    config_check_visibility = int(d.getVar("KCONF_AUDIT_LEVEL") or 0)
-    bsp_check_visibility = int(d.getVar("KCONF_BSP_AUDIT_LEVEL") or 0)
+    config_check_visibility = int(d.getVar( "KCONF_AUDIT_LEVEL", True ) or 0)
+    bsp_check_visibility = int(d.getVar( "KCONF_BSP_AUDIT_LEVEL", True ) or 0)
 
     # if config check visibility is non-zero, report dropped configuration values
     mismatch_file = d.expand("${S}/%s/cfg/mismatch.txt" % kmeta)
@@ -385,10 +350,6 @@ do_validate_branches() {
 			current_branch=`git rev-parse --abbrev-ref HEAD`
 			git branch "$current_branch-orig"
 			git reset --hard ${force_srcrev}
-			# We've checked out HEAD, make sure we cleanup kgit-s2q fence post check
-			# so the patches are applied as expected otherwise no patching
-			# would be done in some corner cases.
-			kgit-s2q --clean
 		fi
 	fi
 }

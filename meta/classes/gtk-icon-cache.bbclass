@@ -2,8 +2,6 @@ FILES_${PN} += "${datadir}/icons/hicolor"
 
 DEPENDS += "${@['hicolor-icon-theme', '']['${BPN}' == 'hicolor-icon-theme']} gtk-icon-utils-native"
 
-PACKAGE_WRITE_DEPS += "gtk-icon-utils-native gdk-pixbuf-native"
-
 gtk_icon_cache_postinst() {
 if [ "x$D" != "x" ]; then
 	$INTERCEPT_DIR/postinst_intercept update_icon_cache ${PKG} \
@@ -37,11 +35,11 @@ fi
 }
 
 python populate_packages_append () {
-    packages = d.getVar('PACKAGES').split()
-    pkgdest =  d.getVar('PKGDEST')
+    packages = d.getVar('PACKAGES', True).split()
+    pkgdest =  d.getVar('PKGDEST', True)
     
     for pkg in packages:
-        icon_dir = '%s/%s/%s/icons' % (pkgdest, pkg, d.getVar('datadir'))
+        icon_dir = '%s/%s/%s/icons' % (pkgdest, pkg, d.getVar('datadir', True))
         if not os.path.exists(icon_dir):
             continue
 
@@ -51,16 +49,16 @@ python populate_packages_append () {
     
         bb.note("adding gtk-icon-cache postinst and postrm scripts to %s" % pkg)
         
-        postinst = d.getVar('pkg_postinst_%s' % pkg)
+        postinst = d.getVar('pkg_postinst_%s' % pkg, True)
         if not postinst:
             postinst = '#!/bin/sh\n'
-        postinst += d.getVar('gtk_icon_cache_postinst')
+        postinst += d.getVar('gtk_icon_cache_postinst', True)
         d.setVar('pkg_postinst_%s' % pkg, postinst)
 
-        postrm = d.getVar('pkg_postrm_%s' % pkg)
+        postrm = d.getVar('pkg_postrm_%s' % pkg, True)
         if not postrm:
             postrm = '#!/bin/sh\n'
-        postrm += d.getVar('gtk_icon_cache_postrm')
+        postrm += d.getVar('gtk_icon_cache_postrm', True)
         d.setVar('pkg_postrm_%s' % pkg, postrm)
 }
 

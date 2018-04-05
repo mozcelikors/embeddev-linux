@@ -1,0 +1,115 @@
+#To build SDK, use bitbake meta-toolchain or bitbake rpi-embeddev-lxde-image -c populate_sdk
+# meta-embeddev set layer prio 12
+
+DESCRIPTION = "Embeddev-LXDE image."
+LICENSE="CLOSED"
+
+image_KERNEL_MODULES = " \
+    kernel-modules \
+"
+
+#Framebuffer driver for tft
+image_DRIVERS = " \
+    xf86-video-fbdev \
+"
+
+image_DESKTOP_SUPPORT = " \
+    packagegroup-core-boot \
+    packagegroup-core-x11 \
+    packagegroup-lxde-base \
+    localedef \
+    pointercal \
+    xinit \
+    xkeyboard-config \
+    base-passwd \
+    liberation-fonts \
+"
+
+image_BASIC_TOOLS = " \
+    apt \
+    dpkg \
+    tzdata \
+    dbus \
+    packagegroup-core-ssh-openssh \
+    xterm \
+    networkmanager \
+    wpa-supplicant \
+"
+
+image_DEV_TOOLS = " \
+    git \
+    cmake \
+    pkgconfig \
+    python-modules \
+    python3-modules \
+"
+
+image_DEV_LIBS = " \
+    wiringpi \
+"
+
+image_QT_TOOLS = " \
+    qtbase \
+"
+
+IMAGE_INSTALL_append = " \
+    ${image_KERNEL_MODULES} \
+    ${image_DRIVERS} \
+    ${image_DESKTOP_SUPPORT} \
+    ${image_BASIC_TOOLS} \
+    ${image_DEV_TOOLS} \
+    ${image_DEV_LIBS} \
+    ${image_QT_TOOLS} \
+ "
+
+# Add the following the meta-embeddev/conf/layer.conf to ignore unbuildable and unnecessary packages
+DISTRO_FEATURES_remove = " qtwayland wayland"
+
+#Maybe consider connman instead of networkmanager
+#vc-graphics is problematic with userland..
+
+# for populate_sdk to create a valid toolchain with qt5
+#inherit core-image
+#inherit populate_sdk populate_sdk_qt5
+
+
+## SDK stuff, to build sdk use bitbake rpi-embeddev-lxde-image -c populate_sdk
+# Add all static packages:  SDKIMAGE_FEATURES += "staticdev-pkgs"
+# Following is necessary:
+SDKIMAGE_FEATURES += "staticdev-pkgs"
+SDKIMAGE_FEATURES += "dev-pkgs"
+
+# Dnf issue fix for nativesdk-qt add to local.conf
+#PACKAGE_CLASSES = "package_ipk"
+
+# In the target side, add our libs
+TOOLCHAIN_TARGET_TASK_append = " wiringpi-dev"
+
+# Needed for cross-compilation / host tasks
+TOOLCHAIN_HOST_TASK_append = " nativesdk-cmake"
+
+inherit distro_features_check
+
+REQUIRED_DISTRO_FEATURES = "x11"
+
+
+IMAGE_LINGUAS ?= " "
+
+LICENSE = "MIT"
+
+export IMAGE_BASENAME = "rpi-embeddev-lxde-image"
+
+inherit core-image
+
+ENABLE_SPI_BUS = "1"
+ENABLE_I2C = "1"
+
+# qtwebengine qtwebkit ...
+
+#do_populate_sdk_append() {
+#
+#}
+#
+#do_image_prepend() {
+#
+#}

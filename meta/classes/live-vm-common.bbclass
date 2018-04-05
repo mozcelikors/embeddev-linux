@@ -4,18 +4,16 @@ def set_live_vm_vars(d, suffix):
     vars = ['GRUB_CFG', 'SYSLINUX_CFG', 'ROOT', 'LABELS', 'INITRD']
     for var in vars:
         var_with_suffix = var + '_' + suffix
-        if d.getVar(var):
+        if d.getVar(var, True):
             bb.warn('Found potential conflicted var %s, please use %s rather than %s' % \
                 (var, var_with_suffix, var))
-        elif d.getVar(var_with_suffix):
-            d.setVar(var, d.getVar(var_with_suffix))
+        elif d.getVar(var_with_suffix, True):
+            d.setVar(var, d.getVar(var_with_suffix, True))
 
 
 EFI = "${@bb.utils.contains("MACHINE_FEATURES", "efi", "1", "0", d)}"
 EFI_PROVIDER ?= "grub-efi"
 EFI_CLASS = "${@bb.utils.contains("MACHINE_FEATURES", "efi", "${EFI_PROVIDER}", "", d)}"
-
-MKDOSFS_EXTRAOPTS ??= "-S 512"
 
 # Include legacy boot if MACHINE_FEATURES includes "pcbios" or if it does not
 # contain "efi". This way legacy is supported by default if neither is
@@ -27,23 +25,24 @@ def pcbios(d):
     return pcbios
 
 PCBIOS = "${@pcbios(d)}"
-PCBIOS_CLASS = "${@['','syslinux'][d.getVar('PCBIOS') == '1']}"
+PCBIOS_CLASS = "${@['','syslinux'][d.getVar('PCBIOS', True) == '1']}"
 
 inherit ${EFI_CLASS}
 inherit ${PCBIOS_CLASS}
 
 KERNEL_IMAGETYPE ??= "bzImage"
+VM_DEFAULT_KERNEL ??= "${KERNEL_IMAGETYPE}"
 
 populate_kernel() {
 	dest=$1
 	install -d $dest
 
 	# Install bzImage, initrd, and rootfs.img in DEST for all loaders to use.
-	bbnote "Trying to install ${DEPLOY_DIR_IMAGE}/${KERNEL_IMAGETYPE} as $dest/${KERNEL_IMAGETYPE}"
-	if [ -e ${DEPLOY_DIR_IMAGE}/${KERNEL_IMAGETYPE} ]; then
-		install -m 0644 ${DEPLOY_DIR_IMAGE}/${KERNEL_IMAGETYPE} $dest/${KERNEL_IMAGETYPE}
+	bbnote "Trying to install ${DEPLOY_DIR_IMAGE}/${VM_DEFAULT_KERNEL} as $dest/vmlinuz"
+	if [ -e ${DEPLOY_DIR_IMAGE}/${VM_DEFAULT_KERNEL} ]; then
+		install -m 0644 ${DEPLOY_DIR_IMAGE}/${VM_DEFAULT_KERNEL} $dest/vmlinuz
 	else
-		bbwarn "${DEPLOY_DIR_IMAGE}/${KERNEL_IMAGETYPE} doesn't exist"
+		bbwarn "${DEPLOY_DIR_IMAGE}/${VM_DEFAULT_KERNEL} doesn't exist"
 	fi
 
 	# initrd is made of concatenation of multiple filesystem images

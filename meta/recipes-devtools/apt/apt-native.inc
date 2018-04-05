@@ -17,14 +17,14 @@ python do_install () {
 }
 
 python do_install_config () {
-    indir = os.path.dirname(d.getVar('FILE'))
+    indir = os.path.dirname(d.getVar('FILE', True))
     infile = open(oe.path.join(indir, 'files', 'apt.conf'), 'r')
     data = infile.read()
     infile.close()
 
     data = d.expand(data)
 
-    outdir = oe.path.join(d.getVar('D'), d.getVar('sysconfdir'), 'apt')
+    outdir = oe.path.join(d.getVar('D', True), d.getVar('sysconfdir', True), 'apt')
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -67,10 +67,4 @@ do_install_base () {
 	install -d ${D}${localstatedir}/cache/apt/archives/partial
 
 	install -d ${D}${localstatedir}/log/apt/
-
-	install -d ${D}${includedir}/apt-pkg
-	for h in `find ${S}/apt-pkg ${S}/apt-inst -name '*.h'`
-	do
-		install -m 0644 $h ${D}${includedir}/apt-pkg
-	done
 }

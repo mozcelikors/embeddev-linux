@@ -5,8 +5,8 @@ DEPENDS = "virtual/${TARGET_PREFIX}gcc virtual/${TARGET_PREFIX}g++"
 do_install_append_class-target () {
 	if [ "${TCLIBC}" != "glibc" ]; then
 		case "${TARGET_OS}" in
-			"linux-musl" | "linux-*spe") extra_target_os="linux";;
-			"linux-musleabi") extra_target_os="linux-gnueabi";;
+			"linux-musl" | "linux-uclibc" | "linux-*spe") extra_target_os="linux";;
+			"linux-musleabi" | "linux-uclibceabi") extra_target_os="linux-gnueabi";;
 			*) extra_target_os="linux";;
 		esac
 		ln -s ${TARGET_SYS} ${D}${libdir}/${TARGET_ARCH}${TARGET_VENDOR}-$extra_target_os
@@ -28,10 +28,12 @@ LICENSE_${PN}-dbg = "GPL-3.0-with-GCC-exception"
 
 FILES_${PN}-dev = "\
     ${base_libdir}/libgcc*.so \
-    ${@oe.utils.conditional('BASETARGET_SYS', '${TARGET_SYS}', '', '${libdir}/${BASETARGET_SYS}', d)} \
+    ${@base_conditional('BASETARGET_SYS', '${TARGET_SYS}', '', '${libdir}/${BASETARGET_SYS}', d)} \
     ${libdir}/${TARGET_SYS}/${BINV}* \
     ${libdir}/${TARGET_ARCH}${TARGET_VENDOR}* \
 "
+
+LIBGCCBUILDTREENAME = "gcc-build-internal-"
 
 do_package[depends] += "virtual/${MLPREFIX}libc:do_packagedata"
 do_package_write_ipk[depends] += "virtual/${MLPREFIX}libc:do_packagedata"

@@ -2,7 +2,7 @@
 #
 # Usage: Set GTKIMMODULES_PACKAGES to the packages that needs to update the inputmethod modules
 
-PACKAGE_WRITE_DEPS += "qemu-native"
+DEPENDS =+ "qemu-native"
 
 inherit qemu
 
@@ -61,21 +61,21 @@ fi
 }
 
 python populate_packages_append () {
-    gtkimmodules_pkgs = d.getVar('GTKIMMODULES_PACKAGES').split()
+    gtkimmodules_pkgs = d.getVar('GTKIMMODULES_PACKAGES', True).split()
 
     for pkg in gtkimmodules_pkgs:
             bb.note("adding gtk-immodule-cache postinst and postrm scripts to %s" % pkg)
 
-            postinst = d.getVar('pkg_postinst_%s' % pkg)
+            postinst = d.getVar('pkg_postinst_%s' % pkg, True)
             if not postinst:
                 postinst = '#!/bin/sh\n'
-            postinst += d.getVar('gtk_immodule_cache_postinst')
+            postinst += d.getVar('gtk_immodule_cache_postinst', True)
             d.setVar('pkg_postinst_%s' % pkg, postinst)
 
-            postrm = d.getVar('pkg_postrm_%s' % pkg)
+            postrm = d.getVar('pkg_postrm_%s' % pkg, True)
             if not postrm:
                 postrm = '#!/bin/sh\n'
-            postrm += d.getVar('gtk_immodule_cache_postrm')
+            postrm += d.getVar('gtk_immodule_cache_postrm', True)
             d.setVar('pkg_postrm_%s' % pkg, postrm)
 }
 

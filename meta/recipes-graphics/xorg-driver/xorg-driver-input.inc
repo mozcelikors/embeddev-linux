@@ -1,4 +1,4 @@
-require xorg-driver-common.inc
+include xorg-driver-common.inc
 
 DEPENDS += "inputproto kbproto "
 

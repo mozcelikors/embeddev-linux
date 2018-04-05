@@ -11,8 +11,7 @@ class UnsupportedTerminal(Exception):
     pass
 
 class NoSupportedTerminals(Exception):
-    def __init__(self, terms):
-        self.terms = terms
+    pass
 
 
 class Registry(oe.classutils.ClassRegistry):
@@ -62,10 +61,31 @@ class Gnome(XTerminal):
         # Once fixed on the gnome-terminal project, this should be removed.
         if os.getenv('LC_ALL'): os.putenv('LC_ALL','')
 
-        XTerminal.__init__(self, sh_cmd, title, env, d)
+        # We need to know when the command completes but gnome-terminal gives us no way 
+        # to do this. We therefore write the pid to a file using a "phonehome" wrapper
+        # script, then monitor the pid until it exits. Thanks gnome!
+        import tempfile
+        pidfile = tempfile.NamedTemporaryFile(delete = False).name
+        try:
+            sh_cmd = "oe-gnome-terminal-phonehome " + pidfile + " " + sh_cmd
+            XTerminal.__init__(self, sh_cmd, title, env, d)
+            while os.stat(pidfile).st_size <= 0:
+                continue
+            with open(pidfile, "r") as f:
+                pid = int(f.readline())
+        finally:
+            os.unlink(pidfile)
+
+        import time
+        while True:
+            try:
+                os.kill(pid, 0)
+                time.sleep(0.1)
+            except OSError:
+               return
 
 class Mate(XTerminal):
-    command = 'mate-terminal --disable-factory -t "{title}" -x {command}'
+    command = 'mate-terminal -t "{title}" -x {command}'
     priority = 2
 
 class Xfce(XTerminal):
@@ -77,7 +97,7 @@ class Terminology(XTerminal):
     priority = 2
 
 class Konsole(XTerminal):
-    command = 'konsole --separate --workdir . -p tabtitle="{title}" -e {command}'
+    command = 'konsole --nofork --workdir . -p tabtitle="{title}" -e {command}'
     priority = 2
 
     def __init__(self, sh_cmd, title=None, env=None, d=None):
@@ -86,9 +106,6 @@ class Konsole(XTerminal):
         if vernum and LooseVersion(vernum) < '2.0.0':
             # Konsole from KDE 3.x
             self.command = 'konsole -T "{title}" -e {command}'
-        elif vernum and LooseVersion(vernum) < '16.08.1':
-            # Konsole pre 16.08.01 Has nofork
-            self.command = 'konsole --nofork --workdir . -p tabtitle="{title}" -e {command}'
         XTerminal.__init__(self, sh_cmd, title, env, d)
 
 class XTerm(XTerminal):
@@ -175,7 +192,7 @@ class Custom(Terminal):
     priority = 3
 
     def __init__(self, sh_cmd, title=None, env=None, d=None):
-        self.command = d and d.getVar('OE_TERMINAL_CUSTOMCMD')
+        self.command = d and d.getVar('OE_TERMINAL_CUSTOMCMD', True)
         if self.command:
             if not '{command}' in self.command:
                 self.command += ' {command}'
@@ -189,14 +206,6 @@ class Custom(Terminal):
 def prioritized():
     return Registry.prioritized()
 
-def get_cmd_list():
-    terms = Registry.prioritized()
-    cmds = []
-    for term in terms:
-        if term.command:
-            cmds.append(term.command)
-    return cmds
-
 def spawn_preferred(sh_cmd, title=None, env=None, d=None):
     """Spawn the first supported terminal, by priority"""
     for terminal in prioritized():
@@ -206,7 +215,7 @@ def spawn_preferred(sh_cmd, title=None, env=None, d=None):
         except UnsupportedTerminal:
             continue
     else:
-        raise NoSupportedTerminals(get_cmd_list())
+        raise NoSupportedTerminals()
 
 def spawn(name, sh_cmd, title=None, env=None, d=None):
     """Spawn the specified terminal, by name"""
@@ -216,36 +225,12 @@ def spawn(name, sh_cmd, title=None, env=None, d=None):
     except KeyError:
         raise UnsupportedTerminal(name)
 
-    # We need to know when the command completes but some terminals (at least
-    # gnome and tmux) gives us no way to do this. We therefore write the pid
-    # to a file using a "phonehome" wrapper script, then monitor the pid
-    # until it exits.
-    import tempfile
-    import time
-    pidfile = tempfile.NamedTemporaryFile(delete = False).name
-    try:
-        sh_cmd = bb.utils.which(os.getenv('PATH'), "oe-gnome-terminal-phonehome") + " " + pidfile + " " + sh_cmd
-        pipe = terminal(sh_cmd, title, env, d)
-        output = pipe.communicate()[0]
-        if output:
-            output = output.decode("utf-8")
-        if pipe.returncode != 0:
-            raise ExecutionError(sh_cmd, pipe.returncode, output)
-
-        while os.stat(pidfile).st_size <= 0:
-            time.sleep(0.01)
-            continue
-        with open(pidfile, "r") as f:
-            pid = int(f.readline())
-    finally:
-        os.unlink(pidfile)
-
-    while True:
-        try:
-            os.kill(pid, 0)
-            time.sleep(0.1)
-        except OSError:
-           return
+    pipe = terminal(sh_cmd, title, env, d)
+    output = pipe.communicate()[0]
+    if output:
+        output = output.decode("utf-8")
+    if pipe.returncode != 0:
+        raise ExecutionError(sh_cmd, pipe.returncode, output)
 
 def check_tmux_pane_size(tmux):
     import subprocess as sub
@@ -291,8 +276,6 @@ def check_terminal_version(terminalName):
         if ver.startswith('Konsole'):
             vernum = ver.split(' ')[-1]
         if ver.startswith('GNOME Terminal'):
-            vernum = ver.split(' ')[-1]
-        if ver.startswith('MATE Terminal'):
             vernum = ver.split(' ')[-1]
         if ver.startswith('tmux'):
             vernum = ver.split()[-1]

@@ -10,79 +10,110 @@ PATCH_GIT_USER_EMAIL ?= "oe.patch@oe"
 
 inherit terminal
 
-python () {
-    if d.getVar('PATCHTOOL') == 'git' and d.getVar('PATCH_COMMIT_FUNCTIONS') == '1':
-        extratasks = bb.build.tasksbetween('do_unpack', 'do_patch', d)
-        try:
-            extratasks.remove('do_unpack')
-        except ValueError:
-            # For some recipes do_unpack doesn't exist, ignore it
-            pass
+def src_patches(d, all = False ):
+    workdir = d.getVar('WORKDIR', True)
+    fetch = bb.fetch2.Fetch([], d)
+    patches = []
+    sources = []
+    for url in fetch.urls:
+        local = patch_path(url, fetch, workdir)
+        if not local:
+            if all:
+                local = fetch.localpath(url)
+                sources.append(local)
+            continue
 
-        d.appendVarFlag('do_patch', 'prefuncs', ' patch_task_patch_prefunc')
-        for task in extratasks:
-            d.appendVarFlag(task, 'postfuncs', ' patch_task_postfunc')
-}
+        urldata = fetch.ud[url]
+        parm = urldata.parm
+        patchname = parm.get('pname') or os.path.basename(local)
 
-python patch_task_patch_prefunc() {
-    # Prefunc for do_patch
-    srcsubdir = d.getVar('S')
+        apply, reason = should_apply(parm, d)
+        if not apply:
+            if reason:
+                bb.note("Patch %s %s" % (patchname, reason))
+            continue
 
-    workdir = os.path.abspath(d.getVar('WORKDIR'))
-    testsrcdir = os.path.abspath(srcsubdir)
-    if (testsrcdir + os.sep).startswith(workdir + os.sep):
-        # Double-check that either workdir or S or some directory in-between is a git repository
-        found = False
-        while testsrcdir != '/':
-            if os.path.exists(os.path.join(testsrcdir, '.git')):
-                found = True
-                break
-            if testsrcdir == workdir:
-                break
-            testsrcdir = os.path.dirname(testsrcdir)
-        if not found:
-            bb.fatal('PATCHTOOL = "git" set for source tree that is not a git repository. Refusing to continue as that may result in commits being made in your metadata repository.')
-
-    patchdir = os.path.join(srcsubdir, 'patches')
-    if os.path.exists(patchdir):
-        if os.listdir(patchdir):
-            d.setVar('PATCH_HAS_PATCHES_DIR', '1')
+        patchparm = {'patchname': patchname}
+        if "striplevel" in parm:
+            striplevel = parm["striplevel"]
+        elif "pnum" in parm:
+            #bb.msg.warn(None, "Deprecated usage of 'pnum' url parameter in '%s', please use 'striplevel'" % url)
+            striplevel = parm["pnum"]
         else:
-            os.rmdir(patchdir)
-}
+            striplevel = '1'
+        patchparm['striplevel'] = striplevel
 
-python patch_task_postfunc() {
-    # Prefunc for task functions between do_unpack and do_patch
-    import oe.patch
-    import shutil
-    func = d.getVar('BB_RUNTASK')
-    srcsubdir = d.getVar('S')
+        patchdir = parm.get('patchdir')
+        if patchdir:
+            patchparm['patchdir'] = patchdir
 
-    if os.path.exists(srcsubdir):
-        if func == 'do_patch':
-            haspatches = (d.getVar('PATCH_HAS_PATCHES_DIR') == '1')
-            patchdir = os.path.join(srcsubdir, 'patches')
-            if os.path.exists(patchdir):
-                shutil.rmtree(patchdir)
-                if haspatches:
-                    stdout, _ = bb.process.run('git status --porcelain patches', cwd=srcsubdir)
-                    if stdout:
-                        bb.process.run('git checkout patches', cwd=srcsubdir)
-        stdout, _ = bb.process.run('git status --porcelain .', cwd=srcsubdir)
-        if stdout:
-            useroptions = []
-            oe.patch.GitApplyTree.gitCommandUserOptions(useroptions, d=d)
-            bb.process.run('git add .; git %s commit -a -m "Committing changes from %s\n\n%s"' % (' '.join(useroptions), func, oe.patch.GitApplyTree.ignore_commit_prefix + ' - from %s' % func), cwd=srcsubdir)
-}
+        localurl = bb.fetch.encodeurl(('file', '', local, '', '', patchparm))
+        patches.append(localurl)
 
-def src_patches(d, all=False, expand=True):
-    import oe.patch
-    return oe.patch.src_patches(d, all, expand)
+    if all:
+        return sources
+
+    return patches
+
+def patch_path(url, fetch, workdir):
+    """Return the local path of a patch, or None if this isn't a patch"""
+
+    local = fetch.localpath(url)
+    base, ext = os.path.splitext(os.path.basename(local))
+    if ext in ('.gz', '.bz2', '.Z'):
+        local = os.path.join(workdir, base)
+        ext = os.path.splitext(base)[1]
+
+    urldata = fetch.ud[url]
+    if "apply" in urldata.parm:
+        apply = oe.types.boolean(urldata.parm["apply"])
+        if not apply:
+            return
+    elif ext not in (".diff", ".patch"):
+        return
+
+    return local
 
 def should_apply(parm, d):
     """Determine if we should apply the given patch"""
-    import oe.patch
-    return oe.patch.should_apply(parm, d)
+
+    if "mindate" in parm or "maxdate" in parm:
+        pn = d.getVar('PN', True)
+        srcdate = d.getVar('SRCDATE_%s' % pn, True)
+        if not srcdate:
+            srcdate = d.getVar('SRCDATE', True)
+
+        if srcdate == "now":
+            srcdate = d.getVar('DATE', True)
+
+        if "maxdate" in parm and parm["maxdate"] < srcdate:
+            return False, 'is outdated'
+
+        if "mindate" in parm and parm["mindate"] > srcdate:
+            return False, 'is predated'
+
+
+    if "minrev" in parm:
+        srcrev = d.getVar('SRCREV', True)
+        if srcrev and srcrev < parm["minrev"]:
+            return False, 'applies to later revisions'
+
+    if "maxrev" in parm:
+        srcrev = d.getVar('SRCREV', True)
+        if srcrev and srcrev > parm["maxrev"]:
+            return False, 'applies to earlier revisions'
+
+    if "rev" in parm:
+        srcrev = d.getVar('SRCREV', True)
+        if srcrev and parm["rev"] not in srcrev:
+            return False, "doesn't apply to revision"
+
+    if "notrev" in parm:
+        srcrev = d.getVar('SRCREV', True)
+        if srcrev and parm["notrev"] in srcrev:
+            return False, "doesn't apply to revision"
+
+    return True, None
 
 should_apply[vardepsexclude] = "DATE SRCDATE"
 
@@ -95,20 +126,20 @@ python patch_do_patch() {
         "git": oe.patch.GitApplyTree,
     }
 
-    cls = patchsetmap[d.getVar('PATCHTOOL') or 'quilt']
+    cls = patchsetmap[d.getVar('PATCHTOOL', True) or 'quilt']
 
     resolvermap = {
         "noop": oe.patch.NOOPResolver,
         "user": oe.patch.UserResolver,
     }
 
-    rcls = resolvermap[d.getVar('PATCHRESOLVE') or 'user']
+    rcls = resolvermap[d.getVar('PATCHRESOLVE', True) or 'user']
 
     classes = {}
 
-    s = d.getVar('S')
+    s = d.getVar('S', True)
 
-    os.putenv('PATH', d.getVar('PATH'))
+    os.putenv('PATH', d.getVar('PATH', True))
 
     # We must use one TMPDIR per process so that the "patch" processes
     # don't generate the same temp file name.

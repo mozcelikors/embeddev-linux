@@ -1,5 +1,4 @@
 SUMMARY = "Perl module for using and building Perl SAX2 XML processors"
-HOMEPAGE = "http://search.cpan.org/dist/XML-SAX/"
 DESCRIPTION = "XML::SAX consists of several framework classes for using and \
 building Perl SAX2 XML parsers, filters, and drivers.  It is designed \ 
 around the need to be able to "plug in" different SAX parsers to an \
@@ -23,11 +22,6 @@ SRC_URI[sha256sum] = "32b04b8e36b6cc4cfc486de2d859d87af5386dd930f2383c49347050d6
 
 S = "${WORKDIR}/XML-SAX-${PV}"
 
-inherit cpan ptest-perl
-
-do_install_ptest() {
-	cp -r ${B}/testfiles ${D}${PTEST_PATH}
-	chown -R root:root ${D}${PTEST_PATH}/testfiles
-}
+inherit cpan
 
 BBCLASSEXTEND = "native"

@@ -16,8 +16,6 @@ acpaths = "-I ${S}/common/m4 -I ${S}/m4"
 
 SRC_URI_append = " \
     file://0001-introspection.m4-prefix-pkgconfig-paths-with-PKG_CON.patch \
-    file://gtk-doc-tweaks.patch \
-    file://0001-gst-gstpluginloader.c-when-env-var-is-set-do-not-fal.patch \
 "
 
 PACKAGECONFIG ??= ""
@@ -26,11 +24,11 @@ PACKAGECONFIG[debug] = "--enable-debug,--disable-debug"
 PACKAGECONFIG[tests] = "--enable-tests,--disable-tests"
 PACKAGECONFIG[valgrind] = "--enable-valgrind,--disable-valgrind,valgrind,"
 PACKAGECONFIG[gst-tracer-hooks] = "--enable-gst-tracer-hooks,--disable-gst-tracer-hooks,"
-PACKAGECONFIG[unwind] = "--with-unwind,--without-unwind,libunwind"
-PACKAGECONFIG[dw] = "--with-dw,--without-dw,elfutils"
+PACKAGECONFIG[trace-historic] = "--enable-trace,--disable-trace,"
 
 EXTRA_OECONF = " \
     --disable-dependency-tracking \
+    --disable-docbook \
     --disable-examples \
 "
 
@@ -54,7 +52,19 @@ delete_pkg_m4_file() {
         rm -f "${S}/common/m4/gtk-doc.m4"
 }
 
-do_configure[prefuncs] += "delete_pkg_m4_file"
+# gstreamer is not using system-wide makefiles (which we patch in gtkdoc recipe,
+# but its own custom ones, which we have to patch here
+patch_gtk_doc_makefiles() {
+        # Patch the gtk-doc makefiles so that the qemu wrapper is used to run transient binaries
+        # instead of libtool wrapper or running them directly
+        # Also substitute a bogus plugin scanner, as trying to run the real one is causing issues during build on x86_64.
+        sed -i \
+           -e "s|GTKDOC_RUN =.*|GTKDOC_RUN = \$(top_builddir)/gtkdoc-qemuwrapper|" \
+           -e "s|\$(GTKDOC_EXTRA_ENVIRONMENT)|\$(GTKDOC_EXTRA_ENVIRONMENT) GST_PLUGIN_SCANNER_1_0=\$(top_builddir)/libs/gst/helpers/gst-plugin-scanner-dummy|" \
+           ${S}/common/gtk-doc*mak
+}
+
+do_configure[prefuncs] += " delete_pkg_m4_file patch_gtk_doc_makefiles"
 
 do_compile_prepend() {
         export GIR_EXTRA_LIBS_PATH="${B}/gst/.libs:${B}/libs/gst/base/.libs"

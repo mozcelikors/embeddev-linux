@@ -13,10 +13,6 @@ S = "${WORKDIR}/git-${PV}"
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=7c0d7ef03a7eb04ce795b0f60e68e7e1"
 
-PACKAGECONFIG ??= ""
-PACKAGECONFIG[cvsserver] = ""
-PACKAGECONFIG[svn] = ""
-
 EXTRA_OECONF = "--with-perl=${STAGING_BINDIR_NATIVE}/perl-native/perl \
 		--without-tcltk \
 "
@@ -50,7 +46,7 @@ do_install () {
 perl_native_fixup () {
 	sed -i -e 's#${STAGING_BINDIR_NATIVE}/perl-native/#${bindir}/#' \
 	       -e 's#${libdir}/perl-native/#${libdir}/#' \
-	    ${@d.getVar("PERLTOOLS").replace(' /',d.getVar('D') + '/')}
+	    ${@d.getVar("PERLTOOLS", True).replace(' /',d.getVar('D', True) + '/')}
 
 	# ${libdir} is not applicable here, perl-native files are always
 	# installed to /usr/lib on both 32/64 bits targets.
@@ -58,23 +54,6 @@ perl_native_fixup () {
 	mkdir -p ${D}${libdir}
 	mv ${D}${exec_prefix}/lib/perl-native/perl ${D}${libdir}
 	rmdir -p ${D}${exec_prefix}/lib/perl-native || true
-
-	if [ ! "${@bb.utils.filter('PACKAGECONFIG', 'cvsserver', d)}" ]; then
-		# Only install the git cvsserver command if explicitly requested
-		# as it requires the DBI Perl module, which does not exist in
-		# OE-Core.
-		rm ${D}${libexecdir}/git-core/git-cvsserver \
-		   ${D}${bindir}/git-cvsserver
-	fi
-
-	if [ ! "${@bb.utils.filter('PACKAGECONFIG', 'svn', d)}" ]; then
-		# Only install the git svn command and all Git::SVN Perl modules
-		# if explicitly requested as they require the SVN::Core Perl
-		# module, which does not exist in OE-Core.
-		rm -r ${D}${libexecdir}/git-core/git-svn \
-		      ${D}${libdir}/perl/site_perl/*/Git/SVN*
-		sed -i -e '/SVN/d' ${D}${libdir}/perl/site_perl/*/auto/Git/.packlist
-	fi
 }
 
 REL_GIT_EXEC_PATH = "${@os.path.relpath(libexecdir, bindir)}/git-core"
@@ -107,6 +86,7 @@ PERLTOOLS = " \
     ${libexecdir}/git-core/git-cvsserver \
     ${bindir}/git-cvsserver \
     ${libexecdir}/git-core/git-difftool \
+    ${libexecdir}/git-core/git-relink \
     ${libexecdir}/git-core/git-send-email \
     ${libexecdir}/git-core/git-svn \
     ${libexecdir}/git-core/git-instaweb \
@@ -116,7 +96,6 @@ PERLTOOLS = " \
     ${datadir}/gitweb/gitweb.cgi \
     ${datadir}/git-core/templates/hooks/prepare-commit-msg.sample \
     ${datadir}/git-core/templates/hooks/pre-rebase.sample \
-    ${datadir}/git-core/templates/hooks/fsmonitor-watchman.sample \
 "
 
 # Git tools requiring perl
@@ -126,7 +105,6 @@ FILES_${PN}-perltools += " \
     ${libdir}/perl \
     ${datadir}/perl \
 "
-
 RDEPENDS_${PN}-perltools = "${PN} perl perl-module-file-path findutils"
 
 # git-tk package with gitk and git-gui
@@ -140,6 +118,6 @@ FILES_${PN}-tk = " \
 
 PACKAGES =+ "gitweb"
 FILES_gitweb = "${datadir}/gitweb/"
-RDEPENDS_gitweb = "perl"
+
 
 BBCLASSEXTEND = "native nativesdk"

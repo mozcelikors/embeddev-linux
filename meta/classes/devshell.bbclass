@@ -3,19 +3,19 @@ inherit terminal
 DEVSHELL = "${SHELL}"
 
 python do_devshell () {
-    if d.getVarFlag("do_devshell", "manualfakeroot"):
+    if d.getVarFlag("do_devshell", "manualfakeroot", True):
        d.prependVar("DEVSHELL", "pseudo ")
-       fakeenv = d.getVar("FAKEROOTENV").split()
+       fakeenv = d.getVar("FAKEROOTENV", True).split()
        for f in fakeenv:
             k = f.split("=")
-            d.setVar(k[0], k[1])
+            d.setVar(k[0], k[1])           
             d.appendVar("OE_TERMINAL_EXPORTS", " " + k[0])
        d.delVarFlag("do_devshell", "fakeroot")
 
-    oe_terminal(d.getVar('DEVSHELL'), 'OpenEmbedded Developer Shell', d)
+    oe_terminal(d.getVar('DEVSHELL', True), 'OpenEmbedded Developer Shell', d)
 }
 
-addtask devshell after do_patch do_prepare_recipe_sysroot
+addtask devshell after do_patch
 
 # The directory that the terminal starts in
 DEVSHELL_STARTDIR ?= "${S}"
@@ -27,7 +27,7 @@ do_devshell[nostamp] = "1"
 # be done as the normal user. We therfore carefully construct the envionment
 # manually
 python () {
-    if d.getVarFlag("do_devshell", "fakeroot"):
+    if d.getVarFlag("do_devshell", "fakeroot", True):
        # We need to signal our code that we want fakeroot however we
        # can't manipulate the environment and variables here yet (see YOCTO #4795)
        d.setVarFlag("do_devshell", "manualfakeroot", "1")
@@ -49,7 +49,7 @@ def devpyshell(d):
         old[3] = old[3] &~ termios.ECHO &~ termios.ICANON
         # &~ termios.ISIG
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
-
+    
     # No echo or buffering over the pty
     noechoicanon(s)
 
@@ -82,7 +82,7 @@ def devpyshell(d):
         more = False
 
         i = code.InteractiveInterpreter(locals=_context)
-        print("OE PyShell (PN = %s)\n" % d.getVar("PN"))
+        print("OE PyShell (PN = %s)\n" % d.getVar("PN", True))
 
         def prompt(more):
             if more:
@@ -145,7 +145,7 @@ python do_devpyshell() {
     try:
         devpyshell(d)
     except SystemExit:
-        # Stop the SIGTERM above causing an error exit code
+        # Stop the SIGTERM above causing an error exit code    
         return
     finally:
         return

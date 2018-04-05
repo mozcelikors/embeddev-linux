@@ -18,9 +18,14 @@ S = "${WORKDIR}/diffstat-${PV}"
 
 inherit autotools gettext ptest
 
-EXTRA_AUTORECONF += "--exclude=aclocal"
-
 LDFLAGS += "${TOOLCHAIN_OPTIONS}"
+
+do_configure () {
+	if [ ! -e ${S}/acinclude.m4 ]; then
+		mv ${S}/aclocal.m4 ${S}/acinclude.m4
+	fi
+	autotools_do_configure
+}
 
 do_install_ptest() {
 	cp -r ${S}/testing ${D}${PTEST_PATH}

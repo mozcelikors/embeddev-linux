@@ -1,7 +1,7 @@
 SUMMARY = "System and process monitoring utilities"
 DESCRIPTION = "Procps contains a set of system utilities that provide system information about processes using \
 the /proc filesystem. The package includes the programs ps, top, vmstat, w, kill, and skill."
-HOMEPAGE = "https://gitlab.com/procps-ng/procps"
+HOMEPAGE = "https://gitorious.org/procps"
 SECTION = "base"
 LICENSE = "GPLv2+ & LGPLv2+"
 LIC_FILES_CHKSUM="file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263 \
@@ -22,6 +22,8 @@ SRC_URI[sha256sum] = "6ed65ab86318f37904e8f9014415a098bec5bc53653e5d9ab404f95ca5
 S = "${WORKDIR}/procps-ng-${PV}"
 
 EXTRA_OECONF = "--enable-skill --disable-modern-top"
+
+CPPFLAGS += "-I${S}"
 
 do_install_append () {
 	install -d ${D}${base_bindir}
@@ -47,7 +49,6 @@ base_bindir_progs += "kill pidof ps watch"
 base_sbindir_progs += "sysctl"
 
 ALTERNATIVE_PRIORITY = "200"
-ALTERNATIVE_PRIORITY[pidof] = "150"
 
 ALTERNATIVE_${PN} = "${bindir_progs} ${base_bindir_progs} ${base_sbindir_progs}"
 
@@ -56,10 +57,10 @@ ALTERNATIVE_LINK_NAME[kill.1] = "${mandir}/man1/kill.1"
 ALTERNATIVE_LINK_NAME[uptime.1] = "${mandir}/man1/uptime.1"
 
 python __anonymous() {
-    for prog in d.getVar('base_bindir_progs').split():
-        d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_bindir'), prog))
+    for prog in d.getVar('base_bindir_progs', True).split():
+        d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_bindir', True), prog))
 
-    for prog in d.getVar('base_sbindir_progs').split():
-        d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_sbindir'), prog))
+    for prog in d.getVar('base_sbindir_progs', True).split():
+        d.setVarFlag('ALTERNATIVE_LINK_NAME', prog, '%s/%s' % (d.getVar('base_sbindir', True), prog))
 }
 

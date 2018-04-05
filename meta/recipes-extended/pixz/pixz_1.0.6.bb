@@ -15,11 +15,10 @@ SRC_URI += "file://936d8068ae19d95260d3058f41dd6cf718101cd6.patch \
 "
 UPSTREAM_CHECK_URI = "https://github.com/vasi/pixz/releases"
 
-PACKAGECONFIG[manpages] = "--with-manpage, --without-manpage, asciidoc-native"
-
+EXTRA_OECONF += "--without-manpage"
 CFLAGS_append_libc-musl = " -D_GNU_SOURCE"
 CACHED_CONFIGUREVARS += "ac_cv_file_src_pixz_1=no"
 
-inherit autotools pkgconfig manpages
+inherit autotools pkgconfig
 
 BBCLASSEXTEND = "native"

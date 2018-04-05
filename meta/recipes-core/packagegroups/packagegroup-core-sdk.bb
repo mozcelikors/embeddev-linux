@@ -28,13 +28,15 @@ RDEPENDS_packagegroup-core-sdk = "\
 
 SANITIZERS = "libasan-dev libubsan-dev"
 SANITIZERS_aarch64 = ""
-SANITIZERS_microblaze = ""
-SANITIZERS_mipsarch = ""
+SANITIZERS_mips = ""
+SANITIZERS_mipsel = ""
+SANITIZERS_mips64 = ""
+SANITIZERS_mips64n32 = ""
 SANITIZERS_nios2 = ""
 SANITIZERS_powerpc64 = ""
 SANITIZERS_sparc = ""
-SANITIZERS_riscv64 = ""
 SANITIZERS_libc-musl = ""
+SANITIZERS_libc-uclibc = ""
 
 RRECOMMENDS_packagegroup-core-sdk = "\
     libgomp \
@@ -43,7 +45,7 @@ RRECOMMENDS_packagegroup-core-sdk = "\
 
 #python generate_sdk_pkgs () {
 #    poky_pkgs = read_pkgdata('packagegroup-core', d)['PACKAGES']
-#    pkgs = d.getVar('PACKAGES').split()
+#    pkgs = d.getVar('PACKAGES', True).split()
 #    for pkg in poky_pkgs.split():
 #        newpkg = pkg.replace('packagegroup-core', 'packagegroup-core-sdk')
 #

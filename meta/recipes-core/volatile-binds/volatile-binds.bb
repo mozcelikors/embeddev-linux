@@ -49,7 +49,7 @@ do_compile () {
             -e "s#@whatparent@#${spec%/*}#g; s#@whereparent@#${mountpoint%/*}#g" \
             volatile-binds.service.in >$servicefile
     done <<END
-${@d.getVar('VOLATILE_BINDS').replace("\\n", "\n")}
+${@d.getVar('VOLATILE_BINDS', True).replace("\\n", "\n")}
 END
 
     if [ -e var-volatile-lib.service ]; then
@@ -67,7 +67,7 @@ do_install () {
     install -m 0755 mount-copybind ${D}${base_sbindir}/
 
     install -d ${D}${systemd_unitdir}/system
-    for service in ${SYSTEMD_SERVICE_${PN}}; do
+    for service in ${SYSTEMD_SERVICE_volatile-binds}; do
         install -m 0644 $service ${D}${systemd_unitdir}/system/
     done
 

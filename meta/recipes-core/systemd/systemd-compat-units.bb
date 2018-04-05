@@ -1,10 +1,11 @@
 SUMMARY = "Enhances systemd compatilibity with existing SysVinit scripts"
-HOMEPAGE = "http://www.freedesktop.org/wiki/Software/systemd"
+
 LICENSE = "MIT"
+LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d690"
 
 PR = "r29"
 
-PACKAGE_WRITE_DEPS += "systemd-systemctl-native"
+DEPENDS = "systemd-systemctl-native"
 
 S = "${WORKDIR}"
 

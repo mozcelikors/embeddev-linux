@@ -7,27 +7,27 @@ python do_package_tar () {
 
     oldcwd = os.getcwd()
 
-    workdir = d.getVar('WORKDIR')
+    workdir = d.getVar('WORKDIR', True)
     if not workdir:
         bb.error("WORKDIR not defined, unable to package")
         return
 
-    outdir = d.getVar('DEPLOY_DIR_TAR')
+    outdir = d.getVar('DEPLOY_DIR_TAR', True)
     if not outdir:
         bb.error("DEPLOY_DIR_TAR not defined, unable to package")
         return
 
-    dvar = d.getVar('D')
+    dvar = d.getVar('D', True)
     if not dvar:
         bb.error("D not defined, unable to package")
         return
 
-    packages = d.getVar('PACKAGES')
+    packages = d.getVar('PACKAGES', True)
     if not packages:
         bb.debug(1, "PACKAGES not defined, nothing to package")
         return
 
-    pkgdest = d.getVar('PKGDEST')
+    pkgdest = d.getVar('PKGDEST', True)
 
     bb.utils.mkdirhier(outdir)
     bb.utils.mkdirhier(dvar)
@@ -38,6 +38,7 @@ python do_package_tar () {
 
         overrides = localdata.getVar('OVERRIDES', False)
         localdata.setVar('OVERRIDES', '%s:%s' % (overrides, pkg))
+        bb.data.update_data(localdata)
 
         bb.utils.mkdirhier(root)
         basedir = os.path.dirname(root)
@@ -45,7 +46,7 @@ python do_package_tar () {
         os.chdir(root)
         dlist = os.listdir(root)
         if not dlist:
-            bb.note("Not creating empty archive for %s-%s-%s" % (pkg, localdata.getVar('PKGV'), localdata.getVar('PKGR')))
+            bb.note("Not creating empty archive for %s-%s-%s" % (pkg, localdata.getVar('PKGV', True), localdata.getVar('PKGR', True)))
             continue
         args = "tar -cz --exclude=CONTROL --exclude=DEBIAN -f".split()
         ret = subprocess.call(args + [tarfn] + dlist)
@@ -56,8 +57,8 @@ python do_package_tar () {
 }
 
 python () {
-    if d.getVar('PACKAGES') != '':
-        deps = (d.getVarFlag('do_package_write_tar', 'depends') or "").split()
+    if d.getVar('PACKAGES', True) != '':
+        deps = (d.getVarFlag('do_package_write_tar', 'depends', True) or "").split()
         deps.append('tar-native:do_populate_sysroot')
         deps.append('virtual/fakeroot-native:do_populate_sysroot')
         d.setVarFlag('do_package_write_tar', 'depends', " ".join(deps))

@@ -15,7 +15,7 @@
 
 inherit useradd_base
 
-PACKAGE_INSTALL_append = " ${@['', 'base-passwd shadow'][bool(d.getVar('EXTRA_USERS_PARAMS'))]}"
+IMAGE_INSTALL_append = " ${@['', 'base-passwd shadow'][bool(d.getVar('EXTRA_USERS_PARAMS', True))]}"
 
 # Image level user / group settings
 ROOTFS_POSTPROCESS_COMMAND_append = " set_user_group;"
@@ -63,7 +63,3 @@ set_user_group () {
 		remaining=`echo $remaining | cut -d ';' -f2-`
 	done
 }
-
-USERADDEXTENSION ?= ""
-
-inherit ${USERADDEXTENSION}

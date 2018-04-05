@@ -63,7 +63,7 @@ distutils_do_install() {
         #
         # FIXME: Bandaid against wrong datadir computation
         #
-        if [ -e ${D}${datadir}/share ]; then
+        if test -e ${D}${datadir}/share; then
             mv -f ${D}${datadir}/share/* ${D}${datadir}/
         fi
 }

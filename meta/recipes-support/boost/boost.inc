@@ -38,19 +38,20 @@ BOOST_LIBS_remove_class-native = " context coroutine"
 BOOST_LIBS_remove_mips16e = "wave"
 
 # optional libraries
-PACKAGECONFIG ??= "locale python"
+PACKAGECONFIG ??= "locale"
 PACKAGECONFIG[locale] = ",,icu"
 PACKAGECONFIG[graph_parallel] = ",,,boost-mpi mpich"
 PACKAGECONFIG[mpi] = ",,mpich"
-PACKAGECONFIG[python] = ",,python3"
+PACKAGECONFIG[python] = ",,python python3"
 
 BOOST_LIBS += "\
-    ${@bb.utils.filter('PACKAGECONFIG', 'locale python', d)} \
+    ${@bb.utils.contains('PACKAGECONFIG', 'locale', 'locale', '', d)} \
     ${@bb.utils.contains('PACKAGECONFIG', 'graph_parallel', 'graph_parallel mpi', \
-                         bb.utils.filter('PACKAGECONFIG', 'mpi', d), d)} \
+                         bb.utils.contains('PACKAGECONFIG', 'mpi', 'mpi', '', d), d)} \
+    ${@bb.utils.contains('PACKAGECONFIG', 'python', 'python python3', '', d)} \
 "
 
-inherit python3-dir
+inherit python-dir
 PYTHON_ROOT = "${STAGING_DIR_HOST}/${prefix}"
 
 # Make a package for each library, plus -dev
@@ -58,17 +59,25 @@ PACKAGES = "${PN}-dbg ${BOOST_PACKAGES}"
 python __anonymous () {
     packages = []
     extras = []
-    for lib in d.getVar('BOOST_LIBS').split():
-        extras.append("--with-%s" % lib)
+    for lib in d.getVar('BOOST_LIBS', True).split( ):
+        # BJAM does not know '--with-python3' (only --with-python)
+        if lib != "python3":
+            extras.append("--with-%s" % lib)
         pkg = "boost-%s" % lib.replace("_", "-")
         packages.append(pkg)
-        if not d.getVar("FILES_%s" % pkg):
-                d.setVar("FILES_%s" % pkg, "${libdir}/libboost_%s*.so.*" % lib)
+        if lib == "python":
+            # special: python*.so matches python3.so !!
+            if not d.getVar("FILES_%s" % pkg, True):
+                    d.setVar("FILES_%s" % pkg, "${libdir}/libboost_%s.so.*" % lib)
+        else:
+            if not d.getVar("FILES_%s" % pkg, True):
+                    d.setVar("FILES_%s" % pkg, "${libdir}/libboost_%s*.so.*" % lib)
     d.setVar("BOOST_PACKAGES", " ".join(packages))
     d.setVar("BJAM_EXTRA", " ".join(extras))
 }
 
 # Override the contents of specific packages
+FILES_${PN}-graph = "${libdir}/libboost_graph.so.*"
 FILES_${PN}-graph_parallel = "${libdir}/libboost_graph_parallel.so.*"
 FILES_${PN}-locale = "${libdir}/libboost_locale.so.*"
 FILES_${PN}-mpi = "${libdir}/mpi.so ${libdir}/libboost_mpi*.so.*"
@@ -79,15 +88,15 @@ FILES_boost-test = "${libdir}/libboost_prg_exec_monitor*.so.* \
 
 # -dev last to pick up the remaining stuff
 PACKAGES += "${PN}-dev ${PN}-staticdev"
+FILES_${PN} = ""
 FILES_${PN}-dev = "${includedir} ${libdir}/libboost_*.so"
 FILES_${PN}-staticdev = "${libdir}/libboost_*.a"
 
 # "boost" is a metapackage which pulls in all boost librabries
 PACKAGES += "${PN}"
-FILES_${PN} = ""
-ALLOW_EMPTY_${PN} = "1"
 RRECOMMENDS_${PN} += "${BOOST_PACKAGES}"
 RRECOMMENDS_${PN}_class-native = ""
+ALLOW_EMPTY_${PN} = "1"
 
 # to avoid GNU_HASH QA errors added LDFLAGS to ARCH; a little bit dirty but at least it works
 TARGET_CC_ARCH += "${LDFLAGS}"
@@ -135,7 +144,29 @@ BJAM_TOOLS   = "--ignore-site-config \
 
 # use PARALLEL_MAKE to speed up the build, but limit it by -j 64, greater parallelism causes bjam to segfault or to ignore -j
 # https://svn.boost.org/trac/boost/ticket/7634
-BOOST_PARALLEL_MAKE = "${@oe.utils.parallel_make_argument(d, '-j%d', limit=64)}"
+def get_boost_parallel_make(d):
+    pm = d.getVar('PARALLEL_MAKE', True)
+    if pm:
+        # look for '-j' and throw other options (e.g. '-l') away
+        # because they might have different meaning in bjam
+        pm = pm.split()
+        while pm:
+            v = None
+            opt = pm.pop(0)
+            if opt == '-j':
+                v = pm.pop(0)
+            elif opt.startswith('-j'):
+                v = opt[2:].strip()
+            else:
+                v = None
+
+            if v:
+                v = min(64, int(v))
+                return '-j' + str(v)
+
+    return ""
+
+BOOST_PARALLEL_MAKE = "${@get_boost_parallel_make(d)}"
 BJAM_OPTS    = '${BOOST_PARALLEL_MAKE} -d+2 -q \
 		${BJAM_TOOLS} \
 		-sBOOST_BUILD_USER_CONFIG=${WORKDIR}/user-config.jam \
@@ -146,42 +177,34 @@ BJAM_OPTS    = '${BOOST_PARALLEL_MAKE} -d+2 -q \
 # Native compilation of bzip2 isn't working
 BJAM_OPTS_append_class-native = ' -sNO_BZIP2=1'
 
-# Adjust the build for x32
-BJAM_OPTS_append_x86-x32 = " abi=x32 address-model=64"
-
 do_configure() {
 	cp -f ${S}/boost/config/platform/linux.hpp ${S}/boost/config/platform/linux-gnueabi.hpp
 
 	# D2194:Fixing the failure of "error: duplicate initialization of gcc with the following parameters" during compilation.
 	rm -f ${WORKDIR}/user-config.jam
 	echo 'using gcc : 4.3.1 : ${CXX} : <cflags>"${CFLAGS}" <cxxflags>"${CXXFLAGS}" <linkflags>"${LDFLAGS}" ;' >> ${WORKDIR}/user-config.jam
-
-	# If we want Python then we need to tell Boost *exactly* where to find it
-	if ${@bb.utils.contains('BOOST_LIBS', 'python', 'true', 'false', d)}; then
-		echo "using python : ${PYTHON_BASEVERSION} : ${STAGING_DIR_HOST}${bindir}/python3 : ${STAGING_DIR_HOST}${includedir}/${PYTHON_DIR}${PYTHON_ABI} : ${STAGING_DIR_HOST}${libdir}/${PYTHON_DIR} ;" >> ${WORKDIR}/user-config.jam
-	fi
+	echo "using python : ${PYTHON_BASEVERSION} : : ${STAGING_INCDIR}/python${PYTHON_BASEVERSION} ;" >> ${WORKDIR}/user-config.jam
+	echo "using python : 3.5 : : ${STAGING_INCDIR}/python3.5m ;" >> ${WORKDIR}/user-config.jam
 
 	if ${@bb.utils.contains('BOOST_LIBS', 'mpi', 'true', 'false', d)}; then
 		echo "using mpi : : <find-shared-library>mpi ;" >> ${WORKDIR}/user-config.jam
 	fi
 
-	CC="${BUILD_CC}" CFLAGS="${BUILD_CFLAGS}" ./bootstrap.sh --with-bjam=bjam --with-toolset=gcc
-
-	# Boost can't be trusted to find Python on it's own, so remove any mention
-	# of it from the boost configuration
-	sed -i '/using python/d' ${S}/project-config.jam
+	CC="${BUILD_CC}" CFLAGS="${BUILD_CFLAGS}" ./bootstrap.sh --with-bjam=bjam --with-toolset=gcc --with-python-root=${PYTHON_ROOT}
+	sed -i '/^using python/d' ${S}/project-config.jam
 }
 
 do_compile() {
+	set -ex
 	rm -rf ${S}/${TARGET_SYS}
 	bjam ${BJAM_OPTS} --prefix=${prefix} \
 		--exec-prefix=${exec_prefix} \
 		--libdir=${libdir} \
-		--includedir=${includedir} \
-		--debug-configuration
+		--includedir=${includedir}
 }
 
 do_install() {
+	set -ex
 	bjam ${BJAM_OPTS} \
 		--libdir=${D}${libdir} \
 		--includedir=${D}${includedir} \

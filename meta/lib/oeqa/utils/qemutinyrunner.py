@@ -17,7 +17,7 @@ from .qemurunner import QemuRunner
 
 class QemuTinyRunner(QemuRunner):
 
-    def __init__(self, machine, rootfs, display, tmpdir, deploy_dir_image, logfile, kernel, boottime, logger):
+    def __init__(self, machine, rootfs, display, tmpdir, deploy_dir_image, logfile, kernel, boottime):
 
         # Popen object for runqemu
         self.runqemu = None
@@ -40,7 +40,6 @@ class QemuTinyRunner(QemuRunner):
         self.socketfile = "console.sock"
         self.server_socket = None
         self.kernel = kernel
-        self.logger = logger
 
 
     def create_socket(self):
@@ -61,7 +60,7 @@ class QemuTinyRunner(QemuRunner):
             with open(self.logfile, "a") as f:
                 f.write("%s" % msg)
 
-    def start(self, qemuparams = None, ssh=True, extra_bootparams=None, runqemuparams='', discard_writes=True):
+    def start(self, qemuparams = None, ssh=True, extra_bootparams=None):
 
         if self.display:
             os.environ["DISPLAY"] = self.display
@@ -108,17 +107,14 @@ class QemuTinyRunner(QemuRunner):
 
         return self.is_alive()
 
-    def run_serial(self, command, timeout=5):
+    def run_serial(self, command):
         self.server_socket.sendall(command+'\n')
         data = ''
         status = 0
         stopread = False
-        endtime = time.time()+timeout
+        endtime = time.time()+5
         while time.time()<endtime and not stopread:
-                try:
-                        sread, _, _ = select.select([self.server_socket],[],[],1)
-                except InterruptedError:
-                        continue
+                sread, _, _ = select.select([self.server_socket],[],[],5)
                 for sock in sread:
                         answer = sock.recv(1024)
                         if answer:
@@ -128,8 +124,6 @@ class QemuTinyRunner(QemuRunner):
                                 stopread = True
         if not data:
             status = 1
-        if not stopread:
-            data += "<<< run_serial(): command timed out after %d seconds without output >>>\r\n\r\n" % timeout
         return (status, str(data))
 
     def find_child(self,parent_pid):

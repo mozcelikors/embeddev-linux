@@ -1,6 +1,6 @@
 require gdb-common.inc
 
-DEPENDS = "expat-native ncurses-native flex-native bison-native"
+DEPENDS = "expat-native ncurses-native"
 
 inherit python3native
 
@@ -21,10 +21,7 @@ GDBPROPREFIX = ""
 PN = "gdb-cross-${TARGET_ARCH}"
 BPN = "gdb"
 
-# Ignore how TARGET_ARCH is computed.
-TARGET_ARCH[vardepvalue] = "${TARGET_ARCH}"
-
 inherit cross
 inherit gettext
 
-datadir .= "/gdb-${TARGET_SYS}${TARGET_VENDOR}-${TARGET_OS}"
+datadir .= "/gdb-${TUNE_PKGARCH}${TARGET_VENDOR}-${TARGET_OS}"

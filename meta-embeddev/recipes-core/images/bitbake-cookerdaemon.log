@@ -1,0 +1,102 @@
+--- Starting bitbake server pid 16588 at 2018-03-26 14:21:08.689296 ---
+Started bitbake server pid 16588
+DEBUG: Found bblayers.conf (/home/mozcelikors/poky/build/conf/bblayers.conf)
+DEBUG: Adding layer /home/mozcelikors/poky/meta
+DEBUG: Adding layer /home/mozcelikors/poky/meta-poky
+DEBUG: Adding layer /home/mozcelikors/poky/meta-yocto-bsp
+DEBUG: Adding layer /home/mozcelikors/poky/meta-openembedded/meta-oe
+DEBUG: Adding layer /home/mozcelikors/poky/meta-openembedded/meta-multimedia
+DEBUG: Adding layer /home/mozcelikors/poky/meta-openembedded/meta-networking
+DEBUG: Adding layer /home/mozcelikors/poky/meta-openembedded/meta-python
+DEBUG: Adding layer /home/mozcelikors/poky/meta-lxde
+DEBUG: Adding layer /home/mozcelikors/poky/meta-openembedded/meta-gnome
+DEBUG: Adding layer /home/mozcelikors/poky/meta-raspberrypi
+DEBUG: Adding layer /home/mozcelikors/poky/meta-embeddev
+DEBUG: Adding layer /home/mozcelikors/poky/meta-qt5
+DEBUG: Adding layer /home/mozcelikors/poky/meta-qt5-extra
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:741: including conf/abi_version.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:742: including conf/site.conf
+DEBUG: CONF file 'conf/site.conf' not found
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:743: including conf/auto.conf
+DEBUG: CONF file 'conf/auto.conf' not found
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:744: including conf/local.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:745: including conf/multiconfig/default.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:746: including conf/machine/raspberrypi0-wifi.conf
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/raspberrypi0-wifi.conf:6: including conf/machine/include/tune-arm1176jzf-s.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/include/tune-arm1176jzf-s.inc:3: including conf/machine/include/arm/arch-armv6.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv6.inc:8: including conf/machine/include/arm/arch-armv5-dsp.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv5-dsp.inc:4: including conf/machine/include/arm/arch-armv5.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv5.inc:8: including conf/machine/include/arm/arch-armv4.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv4.inc:15: including conf/machine/include/arm/arch-arm.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv4.inc:16: including conf/machine/include/arm/feature-arm-thumb.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/machine/include/arm/arch-armv5.inc:9: including conf/machine/include/arm/feature-arm-vfp.inc
+Entering server connection loop
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/raspberrypi0-wifi.conf:7: including conf/machine/include/rpi-base.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/include/rpi-base.inc:1: including conf/machine/include/rpi-default-settings.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/include/rpi-base.inc:2: including conf/machine/include/rpi-default-versions.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/include/rpi-base.inc:3: including conf/machine/include/rpi-default-providers.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-raspberrypi/conf/machine/include/rpi-base.inc:6: including conf/machine/include/soc-family.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:747: including conf/machine-sdk/x86_64.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:748: including conf/distro/poky.conf
+DEBUG: CONF /home/mozcelikors/poky/meta-poky/conf/distro/poky.conf:98: including conf/distro/include/poky-world-exclude.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-poky/conf/distro/poky.conf:99: including conf/distro/include/no-static-libs.inc
+DEBUG: CONF /home/mozcelikors/poky/meta-poky/conf/distro/poky.conf:100: including conf/distro/include/yocto-uninative.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:749: including conf/distro/defaultsetup.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:1: including conf/distro/include/default-providers.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:2: including conf/distro/include/default-versions.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:3: including conf/distro/include/default-distrovars.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:4: including conf/distro/include/world-broken.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:7: including conf/distro/include/tcmode-default.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/include/tcmode-default.inc:68: including conf/distro/include/as-needed.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:10: including conf/distro/include/tclibc-glibc.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/distro/defaultsetup.conf:12: including conf/distro/include/uninative-flags.inc
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:750: including conf/documentation.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:751: including conf/licenses.conf
+DEBUG: CONF /home/mozcelikors/poky/meta/conf/bitbake.conf:752: including conf/sanity.conf
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/base.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/patch.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:4)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/terminal.bbclass (from /home/mozcelikors/poky/meta/classes/patch.bbclass:11)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/staging.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:5)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/mirrors.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:7)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/utils.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:8)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/utility-tasks.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:9)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/metadata_scm.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:10)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/logging.bbclass (from /home/mozcelikors/poky/meta/classes/base.bbclass:11)
+DEBUG: Inheriting /home/mozcelikors/poky/meta-poky/classes/poky-sanity.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/uninative.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/package_ipk.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/package.bbclass (from /home/mozcelikors/poky/meta/classes/package_ipk.bbclass:1)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/packagedata.bbclass (from /home/mozcelikors/poky/meta/classes/package.bbclass:41)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/chrpath.bbclass (from /home/mozcelikors/poky/meta/classes/package.bbclass:42)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/insane.bbclass (from /home/mozcelikors/poky/meta/classes/package.bbclass:45)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/buildstats.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/image-mklibs.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/linuxloader.bbclass (from /home/mozcelikors/poky/meta/classes/image-mklibs.bbclass:5)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/image-prelink.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/debian.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/devshell.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/sstate.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/license.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/remove-libtool.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/blacklist.bbclass (from configuration INHERITs:0)
+DEBUG: Inheriting /home/mozcelikors/poky/meta/classes/sanity.bbclass (from configuration INHERITs:0)
+DEBUG: Clearing SRCREV cache due to cache policy of: clear
+DEBUG: Using cache in '/home/mozcelikors/poky/build/cache/local_file_checksum_cache.dat'
+DEBUG: Using cache in '/home/mozcelikors/poky/build/cache/bb_codeparser.dat'
+DEBUG: Enabling uninative
+Accepting [<socket.socket fd=7, family=AddressFamily.AF_UNIX, type=SocketKind.SOCK_STREAM, proto=0, laddr=bitbake.sock>]
+Connecting Client
+Running command ['setFeatures', [2]]
+Running command ['updateConfig', {'profile': False, 'debug_domains': [], 'force': False, 'verbose': False, 'prefile': [], 'extra_assume_provided': [], 'dry_run': False, 'abort': True, 'invalidate_stamp': None, 'postfile': [], 'debug': 0, 'dump_signatures': [], 'server_timeout': None}, {'IM_CONFIG_PHASE': '1', 'COMPIZ_CONFIG_PROFILE': 'ubuntu', 'DEBEMAIL': 'mozcelikors@gmail.com', 'JOB': 'unity-settings-daemon', 'GTK_IM_MODULE': 'ibus', 'GDM_LANG': 'en_US', 'XDG_MENU_PREFIX': 'gnome-', 'QT_IM_MODULE': 'ibus', 'DISPLAY': ':0', 'KICAD_PATH': '/usr/share/kicad', 'BBPATH': '/home/mozcelikors/poky/build', 'XDG_VTNR': '7', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'GTK2_MODULES': 'overlay-scrollbar', 'QT_LINUX_ACCESSIBILITY_ALWAYS_ON': '1', 'XDG_SESSION_PATH': '/org/freedesktop/DisplayManager/Session0', 'UPSTART_INSTANCE': '', 'QT_ACCESSIBILITY': '1', 'GIO_LAUNCHED_DESKTOP_FILE': '/usr/share/applications/terminator.desktop', 'XDG_RUNTIME_DIR': '/run/user/1000', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share:/usr/share:/var/lib/snapd/desktop:/var/lib/snapd/desktop', 'LANG': 'en_US.UTF-8', 'BUILDDIR': '/home/mozcelikors/poky/build', 'OLDPWD': '/home/mozcelikors/poky/meta-embeddev/recipes-core', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '5539', 'XDG_SESSION_ID': 'c2', 'LOGNAME': 'mozcelikors', 'UPSTART_EVENTS': 'xsession started', 'GNOME_KEYRING_CONTROL': '', 'XAUTHORITY': '/home/mozcelikors/.Xauthority', 'XDG_SEAT_PATH': '/org/freedesktop/DisplayManager/Seat0', '_': '/home/mozcelikors/poky/bitbake/bin/bitbake', 'UPSTART_SESSION': 'unix:abstract=/com/ubuntu/upstart-session/1000/2737', 'LC_TIME': 'de_DE.UTF-8', 'IBUS_DISABLE_SNOOPER': '1', 'axx': 'bbbb', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'DEBFULLNAME': 'Mustafa Oezcelikoers', 'ORBIT_SOCKETDIR': '/tmp/orbit-mozcelikors', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'GPG_AGENT_INFO': '/home/mozcelikors/.gnupg/S.gpg-agent:0:1', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'TERMINATOR_UUID': 'urn:uuid:62828a50-4ec9-4d36-9e66-f987b46d6770', 'SHLVL': '1', 'BB_ENV_EXTRAWHITE': 'ALL_PROXY BBPATH_EXTRA BB_NO_NETWORK BB_NUMBER_THREADS BB_SETSCENE_ENFORCE BB_SRCREV_POLICY DISTRO FTPS_PROXY FTP_PROXY GIT_PROXY_COMMAND HTTPS_PROXY HTTP_PROXY MACHINE NO_PROXY PARALLEL_MAKE SCREENDIR SDKMACHINE SOCKS5_PASSWD SOCKS5_USER SSH_AGENT_PID SSH_AUTH_SOCK STAMPS_DIR TCLIBC TCMODE all_proxy ftp_proxy ftps_proxy http_proxy https_proxy no_proxy ', 'XDG_GREETER_DATA_DIR': '/var/lib/lightdm-data/mozcelikors', 'LC_ADDRESS': 'de_DE.UTF-8', 'XDG_SEAT': 'seat0', 'XMODIFIERS': '@im=ibus', 'SESSION': 'ubuntu', 'USER': 'mozcelikors', 'LC_MONETARY': 'de_DE.UTF-8', 'CLUTTER_IM_MODULE': 'xim', 'LC_MEASUREMENT': 'de_DE.UTF-8', 'LC_NUMERIC': 'de_DE.UTF-8', 'rover3': '100.127.107.85', 'XDG_SESSION_TYPE': 'x11', 'rover2': '100.101.3.183', 'GNOME_KEYRING_PID': '', 'LC_IDENTIFICATION': 'de_DE.UTF-8', 'LC_ALL': 'en_US.UTF-8', 'LC_NAME': 'de_DE.UTF-8', 'QT4_IM_MODULE': 'xim', 'SHELL': '/bin/bash', 'INSTANCE': '', 'QT_QPA_PLATFORMTHEME': 'appmenu-qt5', 'LC_PAPER': 'de_DE.UTF-8', 'XDG_SESSION_DESKTOP': 'ubuntu', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'XDG_CURRENT_DESKTOP': 'Unity', 'PWD': '/home/mozcelikors/poky/meta-embeddev/recipes-core/images', 'DESKTOP_SESSION': 'ubuntu', 'PATH': '/home/mozcelikors/poky/scripts:/home/mozcelikors/poky/bitbake/bin:/home/mozcelikors/bin:/home/mozcelikors/.local/bin:/opt/texbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64/', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/usr/share/upstart/xdg:/etc/xdg', 'LANGUAGE': 'en_US', 'MANDATORY_PATH': '/usr/share/gconf/ubuntu.mandatory.path', 'GTK_MODULES': 'gail:atk-bridge:unity-gtk-module', 'DEFAULTS_PATH': '/usr/share/gconf/ubuntu.default.path', 'HOME': '/home/mozcelikors', 'TERM': 'xterm', 'LC_TELEPHONE': 'de_DE.UTF-8', 'SESSIONTYPE': 'gnome-session', 'KIGITHUB': 'https://github.com/KiCad', 'WINDOWID': '71303172', 'UPSTART_JOB': 'unity7', 'COMPIZ_BIN_PATH': '/usr/bin/', 'DBUS_SESSION_BUS_ADDRESS': 'unix:abstract=/tmp/dbus-pmffTkpYya', 'COLORTERM': 'gnome-terminal', 'rover1': '100.101.1.197', 'GDMSESSION': 'ubuntu'}, ['/home/mozcelikors/poky/bitbake/bin/bitbake', 'meta-toolchain']]
+Running command ['getVariable', 'BBINCLUDELOGS']
+Running command ['getVariable', 'BBINCLUDELOGS_LINES']
+Running command ['getSetVariable', 'BB_CONSOLELOG']
+Running command ['getUIHandlerNum']
+Running command ['setEventMask', 1, 20, {}, ['bb.runqueue.runQueueExitWait', 'bb.event.LogExecTTY', 'logging.LogRecord', 'bb.build.TaskFailed', 'bb.build.TaskBase', 'bb.event.ParseStarted', 'bb.event.ParseProgress', 'bb.event.ParseCompleted', 'bb.event.CacheLoadStarted', 'bb.event.CacheLoadProgress', 'bb.event.CacheLoadCompleted', 'bb.command.CommandFailed', 'bb.command.CommandExit', 'bb.command.CommandCompleted', 'bb.cooker.CookerExit', 'bb.event.MultipleProviders', 'bb.event.NoProvider', 'bb.runqueue.sceneQueueTaskStarted', 'bb.runqueue.runQueueTaskStarted', 'bb.runqueue.runQueueTaskFailed', 'bb.runqueue.sceneQueueTaskFailed', 'bb.event.BuildBase', 'bb.build.TaskStarted', 'bb.build.TaskSucceeded', 'bb.build.TaskFailedSilent', 'bb.build.TaskProgress', 'bb.event.ProcessStarted', 'bb.event.ProcessProgress', 'bb.event.ProcessFinished']]
+Running command ['getVariable', 'BB_DEFAULT_TASK']
+Running command ['setConfig', 'cmd', 'build']
+Running command ['buildTargets', ['meta-toolchain'], 'build']
+Connecting Client
+Disconnecting Client
+No timeout, exiting.
+Exiting

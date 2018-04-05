@@ -11,7 +11,7 @@ DEPENDS = "libpcre python3"
 
 SRC_URI = "${SOURCEFORGE_MIRROR}/${BPN}/${BPN}-${PV}.tar.gz"
 
-inherit autotools python3native pkgconfig
+inherit autotools python3native
 
 EXTRA_OECONF = " \
     --with-python3=${PYTHON} \
@@ -54,8 +54,8 @@ do_install_append_class-nativesdk() {
 }
 
 def swiglib_relpath(d):
-    swiglib = d.getVar('datadir') + "/" + d.getVar('BPN') + "/" + d.getVar('PV')
-    return os.path.relpath(swiglib, d.getVar('bindir'))
+    swiglib = d.getVar('datadir', True) + "/" + d.getVar('BPN', True) + "/" + d.getVar('PV', True)
+    return os.path.relpath(swiglib, d.getVar('bindir', True))
 
 do_install_append_class-native() {
     create_wrapper ${D}${bindir}/swig SWIG_LIB='`dirname $''realpath`'/${@swiglib_relpath(d)}

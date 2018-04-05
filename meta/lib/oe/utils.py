@@ -1,4 +1,9 @@
-import subprocess
+try:
+    # Python 2
+    import commands as cmdstatus
+except ImportError:
+    # Python 3
+    import subprocess as cmdstatus
 
 def read_file(filename):
     try:
@@ -18,27 +23,27 @@ def ifelse(condition, iftrue = True, iffalse = False):
         return iffalse
 
 def conditional(variable, checkvalue, truevalue, falsevalue, d):
-    if d.getVar(variable) == checkvalue:
+    if d.getVar(variable, True) == checkvalue:
         return truevalue
     else:
         return falsevalue
 
 def less_or_equal(variable, checkvalue, truevalue, falsevalue, d):
-    if float(d.getVar(variable)) <= float(checkvalue):
+    if float(d.getVar(variable, True)) <= float(checkvalue):
         return truevalue
     else:
         return falsevalue
 
 def version_less_or_equal(variable, checkvalue, truevalue, falsevalue, d):
-    result = bb.utils.vercmp_string(d.getVar(variable), checkvalue)
+    result = bb.utils.vercmp_string(d.getVar(variable,True), checkvalue)
     if result <= 0:
         return truevalue
     else:
         return falsevalue
 
 def both_contain(variable1, variable2, checkvalue, d):
-    val1 = d.getVar(variable1)
-    val2 = d.getVar(variable2)
+    val1 = d.getVar(variable1, True)
+    val2 = d.getVar(variable2, True)
     val1 = set(val1.split())
     val2 = set(val2.split())
     if isinstance(checkvalue, str):
@@ -61,8 +66,8 @@ def set_intersect(variable1, variable2, d):
     s3 = set_intersect(s1, s2)
     => s3 = "b c"
     """
-    val1 = set(d.getVar(variable1).split())
-    val2 = set(d.getVar(variable2).split())
+    val1 = set(d.getVar(variable1, True).split())
+    val2 = set(d.getVar(variable2, True).split())
     return " ".join(val1 & val2)
 
 def prune_suffix(var, suffixes, d):
@@ -72,7 +77,7 @@ def prune_suffix(var, suffixes, d):
         if var.endswith(suffix):
             var = var.replace(suffix, "")
 
-    prefix = d.getVar("MLPREFIX")
+    prefix = d.getVar("MLPREFIX", True)
     if prefix and var.startswith(prefix):
         var = var.replace(prefix, "")
 
@@ -86,9 +91,16 @@ def str_filter_out(f, str, d):
     from re import match
     return " ".join([x for x in str.split() if not match(f, x, 0)])
 
-def build_depends_string(depends, task):
-    """Append a taskname to a string of dependencies as used by the [depends] flag"""
-    return " ".join(dep + ":" + task for dep in depends.split())
+def param_bool(cfg, field, dflt = None):
+    """Lookup <field> in <cfg> map and convert it to a boolean; take
+    <dflt> when this <field> does not exist"""
+    value = cfg.get(field, dflt)
+    strvalue = str(value).lower()
+    if strvalue in ('yes', 'y', 'true', 't', '1'):
+        return True
+    elif strvalue in ('no', 'n', 'false', 'f', '0'):
+        return False
+    raise ValueError("invalid value for boolean parameter '%s': '%s'" % (field, value))
 
 def inherits(d, *classes):
     """Return True if the metadata inherits any of the specified classes"""
@@ -103,9 +115,9 @@ def features_backfill(var,d):
     # disturbing distributions that have already set DISTRO_FEATURES.
     # Distributions wanting to elide a value in DISTRO_FEATURES_BACKFILL should
     # add the feature to DISTRO_FEATURES_BACKFILL_CONSIDERED
-    features = (d.getVar(var) or "").split()
-    backfill = (d.getVar(var+"_BACKFILL") or "").split()
-    considered = (d.getVar(var+"_BACKFILL_CONSIDERED") or "").split()
+    features = (d.getVar(var, True) or "").split()
+    backfill = (d.getVar(var+"_BACKFILL", True) or "").split()
+    considered = (d.getVar(var+"_BACKFILL_CONSIDERED", True) or "").split()
 
     addfeatures = []
     for feature in backfill:
@@ -115,107 +127,24 @@ def features_backfill(var,d):
     if addfeatures:
         d.appendVar(var, " " + " ".join(addfeatures))
 
-def all_distro_features(d, features, truevalue="1", falsevalue=""):
-    """
-    Returns truevalue if *all* given features are set in DISTRO_FEATURES,
-    else falsevalue. The features can be given as single string or anything
-    that can be turned into a set.
-
-    This is a shorter, more flexible version of
-    bb.utils.contains("DISTRO_FEATURES", features, truevalue, falsevalue, d).
-
-    Without explicit true/false values it can be used directly where
-    Python expects a boolean:
-       if oe.utils.all_distro_features(d, "foo bar"):
-           bb.fatal("foo and bar are mutually exclusive DISTRO_FEATURES")
-
-    With just a truevalue, it can be used to include files that are meant to be
-    used only when requested via DISTRO_FEATURES:
-       require ${@ oe.utils.all_distro_features(d, "foo bar", "foo-and-bar.inc")
-    """
-    return bb.utils.contains("DISTRO_FEATURES", features, truevalue, falsevalue, d)
-
-def any_distro_features(d, features, truevalue="1", falsevalue=""):
-    """
-    Returns truevalue if at least *one* of the given features is set in DISTRO_FEATURES,
-    else falsevalue. The features can be given as single string or anything
-    that can be turned into a set.
-
-    This is a shorter, more flexible version of
-    bb.utils.contains_any("DISTRO_FEATURES", features, truevalue, falsevalue, d).
-
-    Without explicit true/false values it can be used directly where
-    Python expects a boolean:
-       if not oe.utils.any_distro_features(d, "foo bar"):
-           bb.fatal("foo, bar or both must be set in DISTRO_FEATURES")
-
-    With just a truevalue, it can be used to include files that are meant to be
-    used only when requested via DISTRO_FEATURES:
-       require ${@ oe.utils.any_distro_features(d, "foo bar", "foo-or-bar.inc")
-
-    """
-    return bb.utils.contains_any("DISTRO_FEATURES", features, truevalue, falsevalue, d)
-
-def parallel_make(d):
-    """
-    Return the integer value for the number of parallel threads to use when
-    building, scraped out of PARALLEL_MAKE. If no parallelization option is
-    found, returns None
-
-    e.g. if PARALLEL_MAKE = "-j 10", this will return 10 as an integer.
-    """
-    pm = (d.getVar('PARALLEL_MAKE') or '').split()
-    # look for '-j' and throw other options (e.g. '-l') away
-    while pm:
-        opt = pm.pop(0)
-        if opt == '-j':
-            v = pm.pop(0)
-        elif opt.startswith('-j'):
-            v = opt[2:].strip()
-        else:
-            continue
-
-        return int(v)
-
-    return None
-
-def parallel_make_argument(d, fmt, limit=None):
-    """
-    Helper utility to construct a parallel make argument from the number of
-    parallel threads specified in PARALLEL_MAKE.
-
-    Returns the input format string `fmt` where a single '%d' will be expanded
-    with the number of parallel threads to use. If `limit` is specified, the
-    number of parallel threads will be no larger than it. If no parallelization
-    option is found in PARALLEL_MAKE, returns an empty string
-
-    e.g. if PARALLEL_MAKE = "-j 10", parallel_make_argument(d, "-n %d") will return
-    "-n 10"
-    """
-    v = parallel_make(d)
-    if v:
-        if limit:
-            v = min(limit, v)
-        return fmt % v
-    return ''
 
 def packages_filter_out_system(d):
     """
     Return a list of packages from PACKAGES with the "system" packages such as
     PN-dbg PN-doc PN-locale-eb-gb removed.
     """
-    pn = d.getVar('PN')
+    pn = d.getVar('PN', True)
     blacklist = [pn + suffix for suffix in ('', '-dbg', '-dev', '-doc', '-locale', '-staticdev')]
     localepkg = pn + "-locale-"
     pkgs = []
 
-    for pkg in d.getVar('PACKAGES').split():
+    for pkg in d.getVar('PACKAGES', True).split():
         if pkg not in blacklist and localepkg not in pkg:
             pkgs.append(pkg)
     return pkgs
 
 def getstatusoutput(cmd):
-    return subprocess.getstatusoutput(cmd)
+    return cmdstatus.getstatusoutput(cmd)
 
 
 def trim_version(version, num_parts=2):
@@ -256,29 +185,24 @@ def multiprocess_exec(commands, function):
     def init_worker():
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    fails = []
-
-    def failures(res):
-        fails.append(res)
-
     nproc = min(multiprocessing.cpu_count(), len(commands))
     pool = bb.utils.multiprocessingpool(nproc, init_worker)
+    imap = pool.imap(function, commands)
 
     try:
-        mapresult = pool.map_async(function, commands, error_callback=failures)
-
+        res = list(imap)
         pool.close()
         pool.join()
-        results = mapresult.get()
+        results = []
+        for result in res:
+            if result is not None:
+                results.append(result)
+        return results
+
     except KeyboardInterrupt:
         pool.terminate()
         pool.join()
         raise
-
-    if fails:
-        raise fails[0]
-
-    return results
 
 def squashspaces(string):
     import re
@@ -309,10 +233,11 @@ def format_pkg_list(pkg_dict, ret_format=None):
 def host_gcc_version(d):
     import re, subprocess
 
-    compiler = d.getVar("BUILD_CC")
+    compiler = d.getVar("BUILD_CC", True)
+
     try:
         env = os.environ.copy()
-        env["PATH"] = d.getVar("PATH")
+        env["PATH"] = d.getVar("PATH", True)
         output = subprocess.check_output("%s --version" % compiler, shell=True, env=env).decode("utf-8")
     except subprocess.CalledProcessError as e:
         bb.fatal("Error running %s --version: %s" % (compiler, e.output.decode("utf-8")))
@@ -323,14 +248,6 @@ def host_gcc_version(d):
 
     version = match.group(1)
     return "-%s" % version if version in ("4.8", "4.9") else ""
-
-
-def get_multilib_datastore(variant, d):
-    localdata = bb.data.createCopy(d)
-    overrides = localdata.getVar("OVERRIDES", False) + ":virtclass-multilib-" + variant
-    localdata.setVar("OVERRIDES", overrides)
-    localdata.setVar("MLPREFIX", variant + "-")
-    return localdata
 
 #
 # Python 2.7 doesn't have threaded pools (just multiprocessing)
@@ -404,8 +321,8 @@ def write_ld_so_conf(d):
         bb.utils.remove(ldsoconf)
     bb.utils.mkdirhier(os.path.dirname(ldsoconf))
     with open(ldsoconf, "w") as f:
-        f.write(d.getVar("base_libdir") + '\n')
-        f.write(d.getVar("libdir") + '\n')
+        f.write(d.getVar("base_libdir", True) + '\n')
+        f.write(d.getVar("libdir", True) + '\n')
 
 class ImageQAFailed(bb.build.FuncFailed):
     def __init__(self, description, name=None, logfile=None):

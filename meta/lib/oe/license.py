@@ -106,8 +106,7 @@ def is_included(licensestr, whitelist=None, blacklist=None):
     license string matches the whitelist and does not match the blacklist.
 
     Returns a tuple holding the boolean state and a list of the applicable
-    licenses that were excluded if state is False, or the licenses that were
-    included if the state is True.
+    licenses which were excluded (or None, if the state is True)
     """
 
     def include_license(license):
@@ -118,17 +117,10 @@ def is_included(licensestr, whitelist=None, blacklist=None):
 
     def choose_licenses(alpha, beta):
         """Select the option in an OR which is the 'best' (has the most
-        included licenses and no excluded licenses)."""
-        # The factor 1000 below is arbitrary, just expected to be much larger
-        # that the number of licenses actually specified. That way the weight
-        # will be negative if the list of licenses contains an excluded license,
-        # but still gives a higher weight to the list with the most included
-        # licenses.
-        alpha_weight = (len(list(filter(include_license, alpha))) -
-                        1000 * (len(list(filter(exclude_license, alpha))) > 0))
-        beta_weight = (len(list(filter(include_license, beta))) -
-                       1000 * (len(list(filter(exclude_license, beta))) > 0))
-        if alpha_weight >= beta_weight:
+        included licenses)."""
+        alpha_weight = len(list(filter(include_license, alpha)))
+        beta_weight = len(list(filter(include_license, beta)))
+        if alpha_weight > beta_weight:
             return alpha
         else:
             return beta

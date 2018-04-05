@@ -21,8 +21,8 @@ class BuildSystem(object):
     def __init__(self, context, d):
         self.d = d
         self.context = context
-        self.layerdirs = [os.path.abspath(pth) for pth in d.getVar('BBLAYERS').split()]
-        self.layers_exclude = (d.getVar('SDK_LAYERS_EXCLUDE') or "").split()
+        self.layerdirs = [os.path.abspath(pth) for pth in d.getVar('BBLAYERS', True).split()]
+        self.layers_exclude = (d.getVar('SDK_LAYERS_EXCLUDE', True) or "").split()
 
     def copy_bitbake_and_layers(self, destdir, workspace_name=None):
         # Copy in all metadata layers + bitbake (as repositories)
@@ -30,12 +30,8 @@ class BuildSystem(object):
         bb.utils.mkdirhier(destdir)
         layers = list(self.layerdirs)
 
-        corebase = os.path.abspath(self.d.getVar('COREBASE'))
+        corebase = os.path.abspath(self.d.getVar('COREBASE', True))
         layers.append(corebase)
-        # The bitbake build system uses the meta-skeleton layer as a layout
-        # for common recipies, e.g: the recipetool script to create kernel recipies
-        # Add the meta-skeleton layer to be included as part of the eSDK installation
-        layers.append(os.path.join(corebase, 'meta-skeleton'))
 
         # Exclude layers
         for layer_exclude in self.layers_exclude:
@@ -50,7 +46,7 @@ class BuildSystem(object):
                 extranum += 1
                 workspace_newname = '%s-%d' % (workspace_name, extranum)
 
-        corebase_files = self.d.getVar('COREBASE_FILES').split()
+        corebase_files = self.d.getVar('COREBASE_FILES', True).split()
         corebase_files = [corebase + '/' +x for x in corebase_files]
         # Make sure bitbake goes in
         bitbake_dir = bb.__file__.rsplit('/', 3)[0]
@@ -75,11 +71,6 @@ class BuildSystem(object):
             layerdestpath = destdir
             if corebase == os.path.dirname(layer):
                 layerdestpath += '/' + os.path.basename(corebase)
-            else:
-                layer_relative = os.path.basename(corebase) + '/' + os.path.relpath(layer, corebase)
-                if os.path.dirname(layer_relative) != layernewname:
-                    layerdestpath += '/' + os.path.dirname(layer_relative)
-
             layerdestpath += '/' + layernewname
 
             layer_relative = os.path.relpath(layerdestpath,
@@ -95,7 +86,7 @@ class BuildSystem(object):
                     destname = os.path.join(layerdestpath, f_basename)
                     _smart_copy(f, destname)
             else:
-                if os.path.exists(os.path.join(layerdestpath, 'conf/layer.conf')):
+                if os.path.exists(layerdestpath):
                     bb.note("Skipping layer %s, already handled" % layer)
                 else:
                     _smart_copy(layer, layerdestpath)
@@ -109,7 +100,7 @@ class BuildSystem(object):
                 # Drop all bbappends except the one for the image the SDK is being built for
                 # (because of externalsrc, the workspace bbappends will interfere with the
                 # locked signatures if present, and we don't need them anyway)
-                image_bbappend = os.path.splitext(os.path.basename(self.d.getVar('FILE')))[0] + '.bbappend'
+                image_bbappend = os.path.splitext(os.path.basename(self.d.getVar('FILE', True)))[0] + '.bbappend'
                 appenddir = os.path.join(layerdestpath, 'appends')
                 if os.path.isdir(appenddir):
                     for fn in os.listdir(appenddir):
@@ -131,14 +122,6 @@ class BuildSystem(object):
                             continue
                         line = line.replace('workspacelayer', workspace_newname)
                         f.write(line)
-
-        # meta-skeleton layer is added as part of the build system
-        # but not as a layer included in the build, therefore it is
-        # not reported to the function caller.
-        for layer in layers_copied:
-            if layer.endswith('/meta-skeleton'):
-                layers_copied.remove(layer)
-                break
 
         return layers_copied
 
@@ -225,7 +208,7 @@ def create_locked_sstate_cache(lockedsigs, input_sstate_cache, output_sstate_cac
     import shutil
     bb.note('Generating sstate-cache...')
 
-    nativelsbstring = d.getVar('NATIVELSBSTRING')
+    nativelsbstring = d.getVar('NATIVELSBSTRING', True)
     bb.process.run("gen-lockedsig-cache %s %s %s %s %s" % (lockedsigs, input_sstate_cache, output_sstate_cache, nativelsbstring, filterfile or ''))
     if fixedlsbstring and nativelsbstring != fixedlsbstring:
         nativedir = output_sstate_cache + '/' + nativelsbstring
@@ -256,7 +239,6 @@ def check_sstate_task_list(d, targets, filteroutfile, cmdprefix='', cwd=None, lo
     cmd = "%sBB_SETSCENE_ENFORCE=1 PSEUDO_DISABLED=1 oe-check-sstate %s -s -o %s %s" % (cmdprefix, targets, filteroutfile, logparam)
     env = dict(d.getVar('BB_ORIGENV', False))
     env.pop('BUILDDIR', '')
-    env.pop('BBPATH', '')
     pathitems = env['PATH'].split(':')
     env['PATH'] = ':'.join([item for item in pathitems if not item.endswith('/bitbake/bin')])
     bb.process.run(cmd, stderr=subprocess.STDOUT, env=env, cwd=cwd, executable='/bin/bash')

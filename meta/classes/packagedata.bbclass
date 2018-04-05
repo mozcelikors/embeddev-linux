@@ -2,10 +2,10 @@ python read_subpackage_metadata () {
     import oe.packagedata
 
     vars = {
-        "PN" : d.getVar('PN'), 
-        "PE" : d.getVar('PE'), 
-        "PV" : d.getVar('PV'),
-        "PR" : d.getVar('PR'),
+        "PN" : d.getVar('PN', True), 
+        "PE" : d.getVar('PE', True), 
+        "PV" : d.getVar('PV', True),
+        "PR" : d.getVar('PR', True),
     }
 
     data = oe.packagedata.read_pkgdata(vars["PN"], d)
@@ -13,7 +13,7 @@ python read_subpackage_metadata () {
     for key in data.keys():
         d.setVar(key, data[key])
 
-    for pkg in d.getVar('PACKAGES').split():
+    for pkg in d.getVar('PACKAGES', True).split():
         sdata = oe.packagedata.read_subpkgdata(pkg, d)
         for key in sdata.keys():
             if key in vars:

@@ -50,30 +50,9 @@ def make_relative_symlink(path):
     os.remove(path)
     os.symlink(base, path)
 
-def replace_absolute_symlinks(basedir, d):
-    """
-    Walk basedir looking for absolute symlinks and replacing them with relative ones.
-    The absolute links are assumed to be relative to basedir
-    (compared to make_relative_symlink above which tries to compute common ancestors
-    using pattern matching instead)
-    """
-    for walkroot, dirs, files in os.walk(basedir):
-        for file in files + dirs:
-            path = os.path.join(walkroot, file)
-            if not os.path.islink(path):
-                continue
-            link = os.readlink(path)
-            if not os.path.isabs(link):
-                continue
-            walkdir = os.path.dirname(path.rpartition(basedir)[2])
-            base = os.path.relpath(link, walkdir)
-            bb.debug(2, "Replacing absolute path %s with relative path %s" % (link, base))
-            os.remove(path)
-            os.symlink(base, path)
-
 def format_display(path, metadata):
     """ Prepare a path for display to the user. """
-    rel = relative(metadata.getVar("TOPDIR"), path)
+    rel = relative(metadata.getVar("TOPDIR", True), path)
     if len(rel) > len(path):
         return path
     else:
@@ -98,10 +77,11 @@ def copyhardlinktree(src, dst):
     if (os.stat(src).st_dev ==  os.stat(dst).st_dev):
         # Need to copy directories only with tar first since cp will error if two 
         # writers try and create a directory at the same time
-        cmd = "cd %s; find . -type d -print | tar --xattrs --xattrs-include='*' -cf - -C %s -p --no-recursion --files-from - | tar --xattrs --xattrs-include='*' -xhf - -C %s" % (src, src, dst)
+        cmd = "cd %s; find . -type d -print | tar --xattrs --xattrs-include='*' -cf - -C %s -p --no-recursion --files-from - | tar --xattrs --xattrs-include='*' -xf - -C %s" % (src, src, dst)
         subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
         source = ''
         if os.path.isdir(src):
+            import glob
             if len(glob.glob('%s/.??*' % src)) > 0:
                 source = './.??* '
             source += './*'
@@ -115,14 +95,7 @@ def copyhardlinktree(src, dst):
         copytree(src, dst)
 
 def remove(path, recurse=True):
-    """
-    Equivalent to rm -f or rm -rf
-    NOTE: be careful about passing paths that may contain filenames with
-    wildcards in them (as opposed to passing an actual wildcarded path) -
-    since we use glob.glob() to expand the path. Filenames containing
-    square brackets are particularly problematic since the they may not
-    actually expand to match the original filename.
-    """
+    """Equivalent to rm -f or rm -rf"""
     for name in glob.glob(path):
         try:
             os.unlink(name)
@@ -237,25 +210,3 @@ def realpath(file, root, use_physdir = True, loop_cnt = 100, assume_dir = False)
         raise
 
     return file
-
-def is_path_parent(possible_parent, *paths):
-    """
-    Return True if a path is the parent of another, False otherwise.
-    Multiple paths to test can be specified in which case all
-    specified test paths must be under the parent in order to
-    return True.
-    """
-    def abs_path_trailing(pth):
-        pth_abs = os.path.abspath(pth)
-        if not pth_abs.endswith(os.sep):
-            pth_abs += os.sep
-        return pth_abs
-
-    possible_parent_abs = abs_path_trailing(possible_parent)
-    if not paths:
-        return False
-    for path in paths:
-        path_abs = abs_path_trailing(path)
-        if not path_abs.startswith(possible_parent_abs):
-            return False
-    return True

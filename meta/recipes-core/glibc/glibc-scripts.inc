@@ -1,10 +1,10 @@
-require glibc-collateral.inc
+include glibc-collateral.inc
 
 SUMMARY = "utility scripts provided by glibc"
 DESCRIPTION = "utility scripts provided by glibc"
 RDEPENDS_${PN} = "bash glibc-mtrace"
 
-SRC = "${COMPONENTS_DIR}/${PACKAGE_ARCH}/glibc-stash-locale/scripts"
+SRC = "${STAGING_INCDIR}/glibc-scripts-internal-${MULTIMACH_TARGET_SYS}"
 
 bashscripts = "sotruss xtrace"
 

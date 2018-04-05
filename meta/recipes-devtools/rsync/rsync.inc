@@ -5,7 +5,7 @@ SECTION = "console/network"
 
 DEPENDS = "popt"
 
-SRC_URI = "https://download.samba.org/pub/${BPN}/src/${BP}.tar.gz \
+SRC_URI = "http://rsync.samba.org/ftp/rsync/src/rsync-${PV}.tar.gz \
            file://rsyncd.conf"
 
 inherit autotools

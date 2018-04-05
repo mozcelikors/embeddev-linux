@@ -1,6 +1,6 @@
 # Report significant differences in the buildhistory repository since a specific revision
 #
-# Copyright (C) 2012-2013, 2016-2017 Intel Corporation
+# Copyright (C) 2012 Intel Corporation
 # Author: Paul Eggleton <paul.eggleton@linux.intel.com>
 #
 # Note: requires GitPython 0.3.1+
@@ -13,10 +13,7 @@ import os.path
 import difflib
 import git
 import re
-import hashlib
-import collections
 import bb.utils
-import bb.tinfoil
 
 
 # How to display fields
@@ -36,29 +33,10 @@ related_fields = {}
 related_fields['RDEPENDS'] = ['DEPENDS']
 related_fields['RRECOMMENDS'] = ['DEPENDS']
 related_fields['FILELIST'] = ['FILES']
+related_fields['PKGSIZE'] = ['FILELIST']
 related_fields['files-in-image.txt'] = ['installed-package-names.txt', 'USER_CLASSES', 'IMAGE_CLASSES', 'ROOTFS_POSTPROCESS_COMMAND', 'IMAGE_POSTPROCESS_COMMAND']
 related_fields['installed-package-names.txt'] = ['IMAGE_FEATURES', 'IMAGE_LINGUAS', 'IMAGE_INSTALL', 'BAD_RECOMMENDATIONS', 'NO_RECOMMENDATIONS', 'PACKAGE_EXCLUDE']
 
-colours = {
-    'colour_default': '',
-    'colour_add':     '',
-    'colour_remove':  '',
-}
-
-def init_colours(use_colours):
-    global colours
-    if use_colours:
-        colours = {
-            'colour_default': '\033[0m',
-            'colour_add':     '\033[1;32m',
-            'colour_remove':  '\033[1;31m',
-        }
-    else:
-        colours = {
-            'colour_default': '',
-            'colour_add':     '',
-            'colour_remove':  '',
-        }
 
 class ChangeRecord:
     def __init__(self, path, fieldname, oldvalue, newvalue, monitored):
@@ -91,32 +69,7 @@ class ChangeRecord:
                     pkglist.append(k)
             return pkglist
 
-        def detect_renamed_dirs(aitems, bitems):
-            adirs = set(map(os.path.dirname, aitems))
-            bdirs = set(map(os.path.dirname, bitems))
-            files_ab = [(name, sorted(os.path.basename(item) for item in aitems if os.path.dirname(item) == name)) \
-                                for name in adirs - bdirs]
-            files_ba = [(name, sorted(os.path.basename(item) for item in bitems if os.path.dirname(item) == name)) \
-                                for name in bdirs - adirs]
-            renamed_dirs = []
-            for dir1, files1 in files_ab:
-                rename = False
-                for dir2, files2 in files_ba:
-                    if files1 == files2 and not rename:
-                        renamed_dirs.append((dir1,dir2))
-                        # Make sure that we don't use this (dir, files) pair again.
-                        files_ba.remove((dir2,files2))
-                        # If a dir has already been found to have a rename, stop and go no further.
-                        rename = True
-
-            # remove files that belong to renamed dirs from aitems and bitems
-            for dir1, dir2 in renamed_dirs:
-                aitems = [item for item in aitems if os.path.dirname(item) not in (dir1, dir2)]
-                bitems = [item for item in bitems if os.path.dirname(item) not in (dir1, dir2)]
-            return renamed_dirs, aitems, bitems
-
         if self.fieldname in list_fields or self.fieldname in list_order_fields:
-            renamed_dirs = []
             if self.fieldname in ['RPROVIDES', 'RDEPENDS', 'RRECOMMENDS', 'RSUGGESTS', 'RREPLACES', 'RCONFLICTS']:
                 (depvera, depverb) = compare_pkg_lists(self.oldvalue, self.newvalue)
                 aitems = pkglist_combine(depvera)
@@ -124,29 +77,16 @@ class ChangeRecord:
             else:
                 aitems = self.oldvalue.split()
                 bitems = self.newvalue.split()
-                if self.fieldname == 'FILELIST':
-                    renamed_dirs, aitems, bitems = detect_renamed_dirs(aitems, bitems)
-
             removed = list(set(aitems) - set(bitems))
             added = list(set(bitems) - set(aitems))
 
-            lines = []
-            if renamed_dirs:
-                for dfrom, dto in renamed_dirs:
-                    lines.append('directory renamed {colour_remove}{}{colour_default} -> {colour_add}{}{colour_default}'.format(dfrom, dto, **colours))
             if removed or added:
                 if removed and not bitems:
-                    lines.append('removed all items "{colour_remove}{}{colour_default}"'.format(' '.join(removed), **colours))
+                    out = '%s: removed all items "%s"' % (self.fieldname, ' '.join(removed))
                 else:
-                    if removed:
-                        lines.append('removed "{colour_remove}{value}{colour_default}"'.format(value=' '.join(removed), **colours))
-                    if added:
-                        lines.append('added "{colour_add}{value}{colour_default}"'.format(value=' '.join(added), **colours))
+                    out = '%s:%s%s' % (self.fieldname, ' removed "%s"' % ' '.join(removed) if removed else '', ' added "%s"' % ' '.join(added) if added else '')
             else:
-                lines.append('changed order')
-
-            out = '%s: %s' % (self.fieldname, ', '.join(lines))
-
+                out = '%s changed order' % self.fieldname
         elif self.fieldname in numeric_fields:
             aval = int(self.oldvalue or 0)
             bval = int(self.newvalue or 0)
@@ -154,9 +94,9 @@ class ChangeRecord:
                 percentchg = ((bval - aval) / float(aval)) * 100
             else:
                 percentchg = 100
-            out = '{} changed from {colour_remove}{}{colour_default} to {colour_add}{}{colour_default} ({}{:.0f}%)'.format(self.fieldname, self.oldvalue or "''", self.newvalue or "''", '+' if percentchg > 0 else '', percentchg, **colours)
+            out = '%s changed from %s to %s (%s%d%%)' % (self.fieldname, self.oldvalue or "''", self.newvalue or "''", '+' if percentchg > 0 else '', percentchg)
         elif self.fieldname in defaultval_map:
-            out = '{} changed from {colour_remove}{}{colour_default} to {colour_add}{}{colour_default}'.format(self.fieldname, self.oldvalue, self.newvalue, **colours)
+            out = '%s changed from %s to %s' % (self.fieldname, self.oldvalue, self.newvalue)
             if self.fieldname == 'PKG' and '[default]' in self.newvalue:
                 out += ' - may indicate debian renaming failure'
         elif self.fieldname in ['pkg_preinst', 'pkg_postinst', 'pkg_prerm', 'pkg_postrm']:
@@ -172,27 +112,24 @@ class ChangeRecord:
             out += '\n  '.join(list(diff)[2:])
             out += '\n  --'
         elif self.fieldname in img_monitor_files or '/image-files/' in self.path:
-            if self.filechanges or (self.oldvalue and self.newvalue):
-                fieldname = self.fieldname
-                if '/image-files/' in self.path:
-                    fieldname = os.path.join('/' + self.path.split('/image-files/')[1], self.fieldname)
-                    out = 'Changes to %s:\n  ' % fieldname
-                else:
-                    if outer:
-                        prefix = 'Changes to %s ' % self.path
-                    out = '(%s):\n  ' % self.fieldname
-                if self.filechanges:
-                    out += '\n  '.join(['%s' % i for i in self.filechanges])
-                else:
-                    alines = self.oldvalue.splitlines()
-                    blines = self.newvalue.splitlines()
-                    diff = difflib.unified_diff(alines, blines, fieldname, fieldname, lineterm='')
-                    out += '\n  '.join(list(diff))
-                    out += '\n  --'
+            fieldname = self.fieldname
+            if '/image-files/' in self.path:
+                fieldname = os.path.join('/' + self.path.split('/image-files/')[1], self.fieldname)
+                out = 'Changes to %s:\n  ' % fieldname
             else:
-                out = ''
+                if outer:
+                    prefix = 'Changes to %s ' % self.path
+                out = '(%s):\n  ' % self.fieldname
+            if self.filechanges:
+                out += '\n  '.join(['%s' % i for i in self.filechanges])
+            else:
+                alines = self.oldvalue.splitlines()
+                blines = self.newvalue.splitlines()
+                diff = difflib.unified_diff(alines, blines, fieldname, fieldname, lineterm='')
+                out += '\n  '.join(list(diff))
+                out += '\n  --'
         else:
-            out = '{} changed from "{colour_remove}{}{colour_default}" to "{colour_add}{}{colour_default}"'.format(self.fieldname, self.oldvalue, self.newvalue, **colours)
+            out = '%s changed from "%s" to "%s"' % (self.fieldname, self.oldvalue, self.newvalue)
 
         if self.related:
             for chg in self.related:
@@ -201,7 +138,7 @@ class ChangeRecord:
                 for line in chg._str_internal(False).splitlines():
                     out += '\n  * %s' % line
 
-        return '%s%s' % (prefix, out) if out else ''
+        return '%s%s' % (prefix, out)
 
 class FileChange:
     changetype_add = 'A'
@@ -445,116 +382,13 @@ def compare_dict_blobs(path, ablob, bblob, report_all, report_ver):
     return changes
 
 
-def compare_siglists(a_blob, b_blob, taskdiff=False):
-    # FIXME collapse down a recipe's tasks?
-    alines = a_blob.data_stream.read().decode('utf-8').splitlines()
-    blines = b_blob.data_stream.read().decode('utf-8').splitlines()
-    keys = []
-    pnmap = {}
-    def readsigs(lines):
-        sigs = {}
-        for line in lines:
-            linesplit = line.split()
-            if len(linesplit) > 2:
-                sigs[linesplit[0]] = linesplit[2]
-                if not linesplit[0] in keys:
-                    keys.append(linesplit[0])
-                pnmap[linesplit[1]] = linesplit[0].rsplit('.', 1)[0]
-        return sigs
-    adict = readsigs(alines)
-    bdict = readsigs(blines)
-    out = []
-
-    changecount = 0
-    addcount = 0
-    removecount = 0
-    if taskdiff:
-        with bb.tinfoil.Tinfoil() as tinfoil:
-            tinfoil.prepare(config_only=True)
-
-            changes = collections.OrderedDict()
-
-            def compare_hashfiles(pn, taskname, hash1, hash2):
-                hashes = [hash1, hash2]
-                hashfiles = bb.siggen.find_siginfo(pn, taskname, hashes, tinfoil.config_data)
-
-                if not taskname:
-                    (pn, taskname) = pn.rsplit('.', 1)
-                    pn = pnmap.get(pn, pn)
-                desc = '%s.%s' % (pn, taskname)
-
-                if len(hashfiles) == 0:
-                    out.append("Unable to find matching sigdata for %s with hashes %s or %s" % (desc, hash1, hash2))
-                elif not hash1 in hashfiles:
-                    out.append("Unable to find matching sigdata for %s with hash %s" % (desc, hash1))
-                elif not hash2 in hashfiles:
-                    out.append("Unable to find matching sigdata for %s with hash %s" % (desc, hash2))
-                else:
-                    out2 = bb.siggen.compare_sigfiles(hashfiles[hash1], hashfiles[hash2], recursecb, collapsed=True)
-                    for line in out2:
-                        m = hashlib.sha256()
-                        m.update(line.encode('utf-8'))
-                        entry = changes.get(m.hexdigest(), (line, []))
-                        if desc not in entry[1]:
-                            changes[m.hexdigest()] = (line, entry[1] + [desc])
-
-            # Define recursion callback
-            def recursecb(key, hash1, hash2):
-                compare_hashfiles(key, None, hash1, hash2)
-                return []
-
-            for key in keys:
-                siga = adict.get(key, None)
-                sigb = bdict.get(key, None)
-                if siga is not None and sigb is not None and siga != sigb:
-                    changecount += 1
-                    (pn, taskname) = key.rsplit('.', 1)
-                    compare_hashfiles(pn, taskname, siga, sigb)
-                elif siga is None:
-                    addcount += 1
-                elif sigb is None:
-                    removecount += 1
-        for key, item in changes.items():
-            line, tasks = item
-            if len(tasks) == 1:
-                desc = tasks[0]
-            elif len(tasks) == 2:
-                desc = '%s and %s' % (tasks[0], tasks[1])
-            else:
-                desc = '%s and %d others' % (tasks[-1], len(tasks)-1)
-            out.append('%s: %s' % (desc, line))
-    else:
-        for key in keys:
-            siga = adict.get(key, None)
-            sigb = bdict.get(key, None)
-            if siga is not None and sigb is not None and siga != sigb:
-                out.append('%s changed from %s to %s' % (key, siga, sigb))
-                changecount += 1
-            elif siga is None:
-                out.append('%s was added' % key)
-                addcount += 1
-            elif sigb is None:
-                out.append('%s was removed' % key)
-                removecount += 1
-    out.append('Summary: %d tasks added, %d tasks removed, %d tasks modified (%.1f%%)' % (addcount, removecount, changecount, (changecount / float(len(bdict)) * 100)))
-    return '\n'.join(out)
-
-
-def process_changes(repopath, revision1, revision2='HEAD', report_all=False, report_ver=False,
-                    sigs=False, sigsdiff=False, exclude_path=None):
+def process_changes(repopath, revision1, revision2='HEAD', report_all=False, report_ver=False):
     repo = git.Repo(repopath)
     assert repo.bare == False
     commit = repo.commit(revision1)
     diff = commit.diff(revision2)
 
     changes = []
-
-    if sigs or sigsdiff:
-        for d in diff.iter_change_type('M'):
-            if d.a_blob.path == 'siglist.txt':
-                changes.append(compare_siglists(d.a_blob, d.b_blob, taskdiff=sigsdiff))
-        return changes
-
     for d in diff.iter_change_type('M'):
         path = os.path.dirname(d.a_blob.path)
         if path.startswith('packages/'):
@@ -633,19 +467,6 @@ def process_changes(repopath, revision1, revision2='HEAD', report_all=False, rep
                         chg.related.append(chg2)
                     elif chg.path == chg2.path and chg.path.startswith('packages/') and chg2.fieldname in ['PE', 'PV', 'PR']:
                         chg.related.append(chg2)
-
-    # filter out unwanted paths
-    if exclude_path:
-        for chg in changes:
-            if chg.filechanges:
-                fchgs = []
-                for fchg in chg.filechanges:
-                    for epath in exclude_path:
-                        if fchg.path.startswith(epath):
-                           break
-                    else:
-                        fchgs.append(fchg)
-                chg.filechanges = fchgs
 
     if report_all:
         return changes

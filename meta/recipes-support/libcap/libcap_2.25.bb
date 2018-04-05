@@ -5,12 +5,11 @@ HOMEPAGE = "http://sites.google.com/site/fullycapable/"
 LICENSE = "BSD | GPLv2"
 LIC_FILES_CHKSUM = "file://License;md5=3f84fd6f29d453a56514cb7e4ead25f1"
 
-DEPENDS = "hostperl-runtime-native gperf-native"
+DEPENDS = "hostperl-runtime-native"
 
 SRC_URI = "${KERNELORG_MIRROR}/linux/libs/security/linux-privs/${BPN}2/${BPN}-${PV}.tar.xz \
            file://0001-ensure-the-XATTR_NAME_CAPS-is-defined-when-it-is-use.patch \
-           file://0001-Fix-build-with-gperf-3.1.patch \
-           "
+"
 SRC_URI[md5sum] = "6666b839e5d46c2ad33fc8aa2ceb5f77"
 SRC_URI[sha256sum] = "693c8ac51e983ee678205571ef272439d83afe62dd8e424ea14ad9790bc35162"
 
@@ -23,11 +22,16 @@ do_configure() {
 	# on what should be replaced with ?=
 	sed -e 's,:=,?=,g' -i Make.Rules
 	sed -e 's,^BUILD_CFLAGS ?= $(.*CFLAGS),BUILD_CFLAGS := $(BUILD_CFLAGS),' -i Make.Rules
+
+	# disable gperf detection
+	sed -e '/shell gperf/cifeq (,yes)' -i libcap/Makefile
 }
 
-PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'pam', d)}"
+PACKAGECONFIG ??= "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam', '', d)} \
+                   ${@bb.utils.contains('DISTRO_FEATURES', 'xattr', 'attr', '', d)}"
 PACKAGECONFIG_class-native ??= ""
 
+PACKAGECONFIG[attr] = "LIBATTR=yes,LIBATTR=no,attr"
 PACKAGECONFIG[pam] = "PAM_CAP=yes,PAM_CAP=no,libpam"
 
 EXTRA_OEMAKE = " \
@@ -35,7 +39,6 @@ EXTRA_OEMAKE = " \
   lib=${@os.path.basename('${libdir}')} \
   RAISE_SETFCAP=no \
   DYNAMIC=yes \
-  BUILD_GPERF=yes \
 "
 
 EXTRA_OEMAKE_append_class-target = " SYSTEM_HEADERS=${STAGING_INCDIR}"

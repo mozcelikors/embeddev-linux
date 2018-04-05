@@ -6,17 +6,15 @@ LICENSE = "GPLv2"
 LICENSE_FLAGS = "commercial"
 LIC_FILES_CHKSUM = "file://COPYING;md5=94d55d512a9ba36caa9b7df079bae19f"
 
-DEPENDS = "nasm-native"
+DEPENDS = "yasm-native"
 
-SRC_URI = "git://github.com/mirror/x264;branch=stable \
+SRC_URI = "git://git.videolan.org/x264.git \
            file://don-t-default-to-cortex-a9-with-neon.patch \
-           file://Fix-X32-build-by-disabling-asm.patch \
            "
-UPSTREAM_CHECK_COMMITS = "1"
 
-SRCREV = "e9a5903edf8ca59ef20e6f4894c196f135af735e"
+SRCREV = "c8a773ebfca148ef04f5a60d42cbd7336af0baf6"
 
-PV = "r2854+git${SRCPV}"
+PV = "r2491+git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
@@ -26,7 +24,6 @@ X264_DISABLE_ASM = ""
 X264_DISABLE_ASM_armv4 = "--disable-asm"
 X264_DISABLE_ASM_armv5 = "--disable-asm"
 X264_DISABLE_ASM_powerpc = "${@bb.utils.contains("TUNE_FEATURES", "spe", "--disable-asm", "", d)}"
-X264_DISABLE_ASM_mipsarch = "${@bb.utils.contains("TUNE_FEATURES", "r6", "", "--disable-asm", d)}"
 
 EXTRA_OECONF = '--prefix=${prefix} \
                 --host=${HOST_SYS} \
@@ -37,7 +34,6 @@ EXTRA_OECONF = '--prefix=${prefix} \
                 --enable-static \
                 --disable-lavf \
                 --disable-swscale \
-                --disable-opencl \
                 --enable-pic \
                 ${X264_DISABLE_ASM} \
                '
@@ -46,8 +42,12 @@ do_configure() {
     ./configure ${EXTRA_OECONF}
 }
 
+AS = "${TARGET_PREFIX}gcc"
+
 do_install() {
     oe_runmake install DESTDIR=${D}
 }
 
-AS[unexport] = "1"
+# PIC can't be enabled for few BSP's
+INSANE_SKIP_${PN}_append = " textrel"
+

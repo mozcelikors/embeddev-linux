@@ -2,12 +2,7 @@ SUMMARY = "C#-like programming language for easing GObject programming"
 DESCRIPTION = "Vala is a C#-like language dedicated to ease GObject programming. \
 Vala compiles to plain C and has no runtime environment nor penalities whatsoever."
 SECTION = "devel"
-DEPENDS = "bison-native flex-native glib-2.0"
-
-# Appending libxslt-native to dependencies has an effect
-# of rebuilding the manual, which is very slow. Let's do this
-# only when api-documentation distro feature is enabled.
-DEPENDS_append_class-target = " ${@bb.utils.contains('DISTRO_FEATURES', 'api-documentation', 'libxslt-native', '', d)}"
+DEPENDS = "bison-native flex-native libxslt-native glib-2.0"
 
 # vala-native contains a native version of vapigen, which we use instead of the target one
 DEPENDS_append_class-target = " vala-native"
@@ -16,7 +11,7 @@ HOMEPAGE = "http://vala-project.org"
 LICENSE = "LGPLv2.1"
 LIC_FILES_CHKSUM = "file://COPYING;md5=fbc093901857fcd118f065f900982c24"
 
-SHRT_VER = "${@d.getVar('PV').split('.')[0]}.${@d.getVar('PV').split('.')[1]}"
+SHRT_VER = "${@d.getVar('PV', True).split('.')[0]}.${@d.getVar('PV', True).split('.')[1]}"
 
 SRC_URI = "http://ftp.gnome.org/pub/GNOME/sources/${BPN}/${SHRT_VER}/${BP}.tar.xz"
 inherit autotools pkgconfig upstream-version-is-even
@@ -33,8 +28,6 @@ vapigen-${SHRT_VER} "\$@"
 EOF
         chmod +x ${B}/vapigen-wrapper
 }
-
-EXTRA_OECONF += " --disable-graphviz"
 
 # Vapigen wrapper needs to be available system-wide, because it will be used
 # to build vapi files from all other packages with vala support
@@ -53,5 +46,5 @@ vapigen_sysroot_preprocess() {
         # up our wrapper.
         sed -i \
            -e "s|vapigen=.*|vapigen=${bindir}/vapigen-wrapper|" \
-           ${SYSROOT_DESTDIR}${libdir}/pkgconfig/vapigen-${SHRT_VER}.pc
+           ${SYSROOT_DESTDIR}${datadir}/pkgconfig/vapigen-${SHRT_VER}.pc
 }

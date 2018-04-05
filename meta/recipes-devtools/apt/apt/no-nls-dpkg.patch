@@ -1,10 +1,8 @@
 Upstream-Status: Pending
 
-Index: apt-1.2.24/apt-pkg/deb/dpkgpm.cc
-===================================================================
---- apt-1.2.24.orig/apt-pkg/deb/dpkgpm.cc
-+++ apt-1.2.24/apt-pkg/deb/dpkgpm.cc
-@@ -54,6 +54,12 @@
+--- a/apt-pkg/deb/dpkgpm.cc
++++ b/apt-pkg/deb/dpkgpm.cc
+@@ -42,6 +42,12 @@
  #include <apti18n.h>
  									/*}}}*/
  
@@ -16,8 +14,8 @@ Index: apt-1.2.24/apt-pkg/deb/dpkgpm.cc
 +
  using namespace std;
  
- APT_PURE static string
-@@ -1703,7 +1709,7 @@ void pkgDPkgPM::WriteApportReport(const
+ namespace
+@@ -1279,7 +1285,7 @@ void pkgDPkgPM::WriteApportReport(const
     }
  
     // check if its not a follow up error 

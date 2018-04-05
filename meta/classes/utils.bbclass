@@ -1,8 +1,49 @@
+# For compatibility
+def base_path_join(a, *p):
+    return oe.path.join(a, *p)
+
+def base_path_relative(src, dest):
+    return oe.path.relative(src, dest)
+
+def base_path_out(path, d):
+    return oe.path.format_display(path, d)
+
+def base_read_file(filename):
+    return oe.utils.read_file(filename)
+
+def base_ifelse(condition, iftrue = True, iffalse = False):
+    return oe.utils.ifelse(condition, iftrue, iffalse)
+
+def base_conditional(variable, checkvalue, truevalue, falsevalue, d):
+    return oe.utils.conditional(variable, checkvalue, truevalue, falsevalue, d)
+
+def base_less_or_equal(variable, checkvalue, truevalue, falsevalue, d):
+    return oe.utils.less_or_equal(variable, checkvalue, truevalue, falsevalue, d)
+
+def base_version_less_or_equal(variable, checkvalue, truevalue, falsevalue, d):
+    return oe.utils.version_less_or_equal(variable, checkvalue, truevalue, falsevalue, d)
+
+def base_contains(variable, checkvalues, truevalue, falsevalue, d):
+    bb.note('base_contains is deprecated, please use bb.utils.contains instead.')
+    return bb.utils.contains(variable, checkvalues, truevalue, falsevalue, d)
+
+def base_both_contain(variable1, variable2, checkvalue, d):
+    return oe.utils.both_contain(variable1, variable2, checkvalue, d)
+
+def base_prune_suffix(var, suffixes, d):
+    return oe.utils.prune_suffix(var, suffixes, d)
+
+def oe_filter(f, str, d):
+    return oe.utils.str_filter(f, str, d)
+
+def oe_filter_out(f, str, d):
+    return oe.utils.str_filter_out(f, str, d)
+
 def machine_paths(d):
     """List any existing machine specific filespath directories"""
-    machine = d.getVar("MACHINE")
-    filespathpkg = d.getVar("FILESPATHPKG").split(":")
-    for basepath in d.getVar("FILESPATHBASE").split(":"):
+    machine = d.getVar("MACHINE", True)
+    filespathpkg = d.getVar("FILESPATHPKG", True).split(":")
+    for basepath in d.getVar("FILESPATHBASE", True).split(":"):
         for pkgpath in filespathpkg:
             machinepath = os.path.join(basepath, pkgpath, machine)
             if os.path.isdir(machinepath):
@@ -11,7 +52,7 @@ def machine_paths(d):
 def is_machine_specific(d):
     """Determine whether the current recipe is machine specific"""
     machinepaths = set(machine_paths(d))
-    srcuri = d.getVar("SRC_URI").split()
+    srcuri = d.getVar("SRC_URI", True).split()
     for url in srcuri:
         fetcher = bb.fetch2.Fetch([srcuri], d)
         if url.startswith("file://"):
@@ -223,17 +264,10 @@ create_cmdline_wrapper () {
 
 	mv $cmd $cmd.real
 	cmdname=`basename $cmd`
-	dirname=`dirname $cmd`
-	cmdoptions=$@
-	if [ "${base_prefix}" != "" ]; then
-		relpath=`python3 -c "import os; print(os.path.relpath('${D}${base_prefix}', '$dirname'))"`
-		cmdoptions=`echo $@ | sed -e "s:${base_prefix}:\\$realdir/$relpath:g"`
-	fi
 	cat <<END >$cmd
 #!/bin/bash
 realpath=\`readlink -fn \$0\`
-realdir=\`dirname \$realpath\`
-exec -a \`dirname \$realpath\`/$cmdname \`dirname \$realpath\`/$cmdname.real $cmdoptions "\$@"
+exec -a \`dirname \$realpath\`/$cmdname \`dirname \$realpath\`/$cmdname.real $@ "\$@"
 END
 	chmod +x $cmd
 }
@@ -253,17 +287,10 @@ create_wrapper () {
 
 	mv $cmd $cmd.real
 	cmdname=`basename $cmd`
-	dirname=`dirname $cmd`
-	exportstring=$@
-	if [ "${base_prefix}" != "" ]; then
-		relpath=`python3 -c "import os; print(os.path.relpath('${D}${base_prefix}', '$dirname'))"`
-		exportstring=`echo $@ | sed -e "s:${base_prefix}:\\$realdir/$relpath:g"`
-	fi
 	cat <<END >$cmd
 #!/bin/bash
 realpath=\`readlink -fn \$0\`
-realdir=\`dirname \$realpath\`
-export $exportstring
+export $@
 exec -a \`dirname \$realpath\`/$cmdname \`dirname \$realpath\`/$cmdname.real "\$@"
 END
 	chmod +x $cmd
@@ -279,8 +306,8 @@ hardlinkdir () {
 
 
 def check_app_exists(app, d):
-    app = d.expand(app).split()[0].strip()
-    path = d.getVar('PATH')
+    app = d.expand(app).strip()
+    path = d.getVar('PATH', d, True)
     return bool(bb.utils.which(path, app))
 
 def explode_deps(s):
@@ -288,14 +315,14 @@ def explode_deps(s):
 
 def base_set_filespath(path, d):
     filespath = []
-    extrapaths = (d.getVar("FILESEXTRAPATHS") or "")
+    extrapaths = (d.getVar("FILESEXTRAPATHS", True) or "")
     # Remove default flag which was used for checking
     extrapaths = extrapaths.replace("__default:", "")
     # Don't prepend empty strings to the path list
     if extrapaths != "":
         path = extrapaths.split(":") + path
     # The ":" ensures we have an 'empty' override
-    overrides = (":" + (d.getVar("FILESOVERRIDES") or "")).split(":")
+    overrides = (":" + (d.getVar("FILESOVERRIDES", True) or "")).split(":")
     overrides.reverse()
     for o in overrides:
         for p in path:
@@ -306,7 +333,7 @@ def base_set_filespath(path, d):
 def extend_variants(d, var, extend, delim=':'):
     """Return a string of all bb class extend variants for the given extend"""
     variants = []
-    whole = d.getVar(var) or ""
+    whole = d.getVar(var, True) or ""
     for ext in whole.split():
         eext = ext.split(delim)
         if len(eext) > 1 and eext[0] == extend:
@@ -314,7 +341,7 @@ def extend_variants(d, var, extend, delim=':'):
     return " ".join(variants)
 
 def multilib_pkg_extend(d, pkg):
-    variants = (d.getVar("MULTILIB_VARIANTS") or "").split()
+    variants = (d.getVar("MULTILIB_VARIANTS", True) or "").split()
     if not variants:
         return pkg
     pkgs = pkg
@@ -322,23 +349,24 @@ def multilib_pkg_extend(d, pkg):
         pkgs = pkgs + " " + v + "-" + pkg
     return pkgs
 
-def get_multilib_datastore(variant, d):
-    return oe.utils.get_multilib_datastore(variant, d)
-
 def all_multilib_tune_values(d, var, unique = True, need_split = True, delim = ' '):
     """Return a string of all ${var} in all multilib tune configuration"""
     values = []
-    value = d.getVar(var) or ""
+    value = d.getVar(var, True) or ""
     if value != "":
         if need_split:
             for item in value.split(delim):
                 values.append(item)
         else:
             values.append(value)
-    variants = d.getVar("MULTILIB_VARIANTS") or ""
+    variants = d.getVar("MULTILIB_VARIANTS", True) or ""
     for item in variants.split():
-        localdata = get_multilib_datastore(item, d)
-        value = localdata.getVar(var) or ""
+        localdata = bb.data.createCopy(d)
+        overrides = localdata.getVar("OVERRIDES", False) + ":virtclass-multilib-" + item
+        localdata.setVar("OVERRIDES", overrides)
+        localdata.setVar("MLPREFIX", item + "-")
+        bb.data.update_data(localdata)
+        value = localdata.getVar(var, True) or ""
         if value != "":
             if need_split:
                 for item in value.split(delim):
@@ -374,19 +402,23 @@ def all_multilib_tune_list(vars, d):
             newoverrides.append(o)
     localdata.setVar("OVERRIDES", ":".join(newoverrides))
     localdata.setVar("MLPREFIX", "")
-    origdefault = localdata.getVar("DEFAULTTUNE_MULTILIB_ORIGINAL")
+    origdefault = localdata.getVar("DEFAULTTUNE_MULTILIB_ORIGINAL", True)
     if origdefault:
         localdata.setVar("DEFAULTTUNE", origdefault)
+    bb.data.update_data(localdata)
     values['ml'] = ['']
     for v in vars:
-        values[v].append(localdata.getVar(v))
-    variants = d.getVar("MULTILIB_VARIANTS") or ""
+        values[v].append(localdata.getVar(v, True))
+    variants = d.getVar("MULTILIB_VARIANTS", True) or ""
     for item in variants.split():
-        localdata = get_multilib_datastore(item, d)
-        values[v].append(localdata.getVar(v))
+        localdata = bb.data.createCopy(d)
+        overrides = localdata.getVar("OVERRIDES", False) + ":virtclass-multilib-" + item
+        localdata.setVar("OVERRIDES", overrides)
+        localdata.setVar("MLPREFIX", item + "-")
+        bb.data.update_data(localdata)
+        values[v].append(localdata.getVar(v, True))
         values['ml'].append(item)
     return values
-all_multilib_tune_list[vardepsexclude] = "OVERRIDES"
 
 # If the user hasn't set up their name/email, set some defaults
 check_git_config() {

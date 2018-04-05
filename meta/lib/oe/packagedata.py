@@ -57,7 +57,7 @@ def read_subpkgdata_dict(pkg, d):
 def _pkgmap(d):
     """Return a dictionary mapping package to recipe name."""
 
-    pkgdatadir = d.getVar("PKGDATA_DIR")
+    pkgdatadir = d.getVar("PKGDATA_DIR", True)
 
     pkgmap = {}
     try:

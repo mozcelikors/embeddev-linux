@@ -4,7 +4,6 @@
 WPA_SUP_BIN="/usr/sbin/wpa_supplicant"
 WPA_SUP_PNAME="wpa_supplicant"
 WPA_SUP_PIDFILE="/var/run/wpa_supplicant.$IFACE.pid"
-WPA_COMMON_CTRL_IFACE="/var/run/wpa_supplicant"
 WPA_SUP_OPTIONS="-B -P $WPA_SUP_PIDFILE -i $IFACE"
 
 VERBOSITY=0

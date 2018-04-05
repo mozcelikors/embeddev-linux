@@ -29,10 +29,10 @@ IPK_GPG_SIGNATURE_TYPE ?= 'ASC'
 python () {
     # Check configuration
     for var in ('IPK_GPG_NAME', 'IPK_GPG_PASSPHRASE_FILE'):
-        if not d.getVar(var):
+        if not d.getVar(var, True):
             raise_sanity_error("You need to define %s in the config" % var, d)
 
-    sigtype = d.getVar("IPK_GPG_SIGNATURE_TYPE")
+    sigtype = d.getVar("IPK_GPG_SIGNATURE_TYPE", True)
     if sigtype.upper() != "ASC" and sigtype.upper() != "BIN":
         raise_sanity_error("Bad value for IPK_GPG_SIGNATURE_TYPE (%s), use either ASC or BIN" % sigtype)
 }
@@ -42,11 +42,11 @@ def sign_ipk(d, ipk_to_sign):
 
     bb.debug(1, 'Signing ipk: %s' % ipk_to_sign)
 
-    signer = get_signer(d, d.getVar('IPK_GPG_BACKEND'))
-    sig_type = d.getVar('IPK_GPG_SIGNATURE_TYPE')
+    signer = get_signer(d, d.getVar('IPK_GPG_BACKEND', True))
+    sig_type = d.getVar('IPK_GPG_SIGNATURE_TYPE', True)
     is_ascii_sig = (sig_type.upper() != "BIN")
 
     signer.detach_sign(ipk_to_sign,
-                       d.getVar('IPK_GPG_NAME'),
-                       d.getVar('IPK_GPG_PASSPHRASE_FILE'),
+                       d.getVar('IPK_GPG_NAME', True),
+                       d.getVar('IPK_GPG_PASSPHRASE_FILE', True),
                        armor=is_ascii_sig)

@@ -21,8 +21,6 @@ live_dev_name=${live_dev_name#\/dev/}
 case $live_dev_name in
     mmcblk*)
     ;;
-    nvme*)
-    ;;
     *)
         live_dev_name=${live_dev_name%%[0-9]*}
     ;;
@@ -132,7 +130,7 @@ fi
 
 disk_size=$(parted ${device} unit mb print | grep '^Disk .*: .*MB' | cut -d" " -f 3 | sed -e "s/MB//")
 
-grub_version=$(grub-install -V|sed 's/.* \([0-9]\).*/\1/')
+grub_version=$(grub-install -v|sed 's/.* \([0-9]\).*/\1/')
 
 if [ $grub_version -eq 0 ] ; then
     bios_boot_size=0
@@ -155,8 +153,7 @@ swap_start=$((rootfs_end))
 # 2) they are detected asynchronously (need rootwait)
 rootwait=""
 part_prefix=""
-if [ ! "${device#/dev/mmcblk}" = "${device}" ] || \
-   [ ! "${device#/dev/nvme}" = "${device}" ]; then
+if [ ! "${device#/dev/mmcblk}" = "${device}" ]; then
     part_prefix="p"
     rootwait="rootwait"
 fi
@@ -211,13 +208,6 @@ parted ${device} mkpart $pname linux-swap $swap_start 100%
 
 parted ${device} print
 
-echo "Waiting for device nodes..."
-C=0
-while [ $C -ne 3 ] && [ ! -e $bootfs  -o ! -e $rootfs -o ! -e $swap ]; do
-    C=$(( C + 1 ))
-    sleep 1
-done
-
 echo "Formatting $bootfs to ext3..."
 mkfs.ext3 $bootfs
 
@@ -256,34 +246,9 @@ fi
 umount /tgt_root
 umount /src_root
 
-echo "Looking for kernels to use as boot target.."
-# Find kernel to boot to
-# Give user options if multiple are found
-kernels="$(find /run/media/$1/ -type f  \
-           -name bzImage* -o -name zImage* \
-           -o -name vmlinux* -o -name vmlinuz* \
-           -o -name fitImage* \
-           | sed s:.*/::)"
-if [ -n "$(echo $kernels)" ]; then
-    # only one kernel entry if no space
-    if [ -z "$(echo $kernels | grep " ")" ]; then
-        kernel=$kernels
-        echo "$kernel will be used as the boot target"
-    else
-        echo "Which kernel do we want to boot by default? The following kernels were found:"
-        echo $kernels
-        read answer
-        kernel=$answer
-    fi
-else
-    echo "No kernels found, exiting..."
-    exit 1
-fi
-
 # Handling of the target boot partition
 mount $bootfs /boot
 echo "Preparing boot partition..."
-
 if [ -f /etc/grub.d/00_header -a $grub_version -ne 0 ] ; then
     echo "Preparing custom grub2 menu..."
     root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs})
@@ -293,7 +258,7 @@ if [ -f /etc/grub.d/00_header -a $grub_version -ne 0 ] ; then
     cat >$GRUBCFG <<_EOF
 menuentry "Linux" {
     search --no-floppy --fs-uuid $boot_uuid --set root
-    linux /$kernel root=PARTUUID=$root_part_uuid $rootwait rw $5 $3 $4 quiet
+    linux /vmlinuz root=PARTUUID=$root_part_uuid $rootwait rw $5 $3 $4 quiet
 }
 _EOF
     chmod 0444 $GRUBCFG
@@ -307,16 +272,10 @@ if [ $grub_version -eq 0 ] ; then
     echo "timeout 30" >> /boot/grub/menu.lst
     echo "title Live Boot/Install-Image" >> /boot/grub/menu.lst
     echo "root  (hd0,0)" >> /boot/grub/menu.lst
-    echo "kernel /$kernel root=$rootfs rw $3 $4 quiet" >> /boot/grub/menu.lst
+    echo "kernel /vmlinuz root=$rootfs rw $3 $4 quiet" >> /boot/grub/menu.lst
 fi
 
-# Copy kernel artifacts. To add more artifacts just add to types
-# For now just support kernel types already being used by something in OE-core
-for types in bzImage zImage vmlinux vmlinuz fitImage; do
-    for kernel in `find /run/media/$1/ -name $types*`; do
-        cp $kernel /boot
-    done
-done
+cp /run/media/$1/vmlinuz /boot/
 
 umount /boot
 

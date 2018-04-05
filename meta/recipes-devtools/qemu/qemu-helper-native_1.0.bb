@@ -19,6 +19,3 @@ do_install() {
 	install -d ${D}${bindir}
 	install tunctl ${D}${bindir}/
 }
-
-DEPENDS += "qemu-native"
-addtask addto_recipe_sysroot after do_populate_sysroot before do_build

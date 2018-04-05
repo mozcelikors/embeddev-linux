@@ -1,6 +1,8 @@
 #
 # Default virtual providers
 #
+PREFERRED_PROVIDER_virtual/db ?= "db"
+PREFERRED_PROVIDER_virtual/db-native ?= "db-native"
 PREFERRED_PROVIDER_virtual/xserver ?= "xserver-xorg"
 PREFERRED_PROVIDER_virtual/xserver-xf86 ?= "xserver-xorg"
 PREFERRED_PROVIDER_virtual/egl ?= "mesa"
@@ -42,7 +44,9 @@ PREFERRED_PROVIDER_opkg ?= "opkg"
 PREFERRED_PROVIDER_opkg-native ?= "opkg-native"
 PREFERRED_PROVIDER_nativesdk-opkg ?= "nativesdk-opkg"
 PREFERRED_PROVIDER_console-tools ?= "kbd"
+PREFERRED_PROVIDER_gzip-native ?= "pigz-native"
 PREFERRED_PROVIDER_udev ?= "${@bb.utils.contains('DISTRO_FEATURES','systemd','systemd','eudev',d)}"
+PREFERRED_RPROVIDER_libasound-module-bluez ?= "${@bb.utils.contains('DISTRO_FEATURES','bluetooth bluez5','bluez5','bluez4',d)}"
 PREFERRED_RPROVIDER_bluez-hcidump ?= "${@bb.utils.contains('DISTRO_FEATURES','bluetooth bluez5','bluez5','bluez-hcidump',d)}"
 # Alternative is ltp-ddt in meta-oe: meta-oe/recipes-devtools/ltp-ddt/ltp-ddt_0.0.4.bb
 PREFERRED_PROVIDER_ltp ?= "ltp"
@@ -50,7 +54,3 @@ PREFERRED_PROVIDER_getopt ?= "util-linux-getopt"
 PREFERRED_PROVIDER_openssl ?= "openssl"
 PREFERRED_PROVIDER_openssl-native ?= "openssl-native"
 PREFERRED_PROVIDER_nativesdk-openssl ?= "nativesdk-openssl"
-PREFERRED_PROVIDER_pkgconfig ?= "pkgconfig"
-PREFERRED_PROVIDER_nativesdk-pkgconfig ?= "nativesdk-pkgconfig"
-PREFERRED_PROVIDER_pkgconfig-native ?= "pkgconfig-native"
-PREFERRED_RPROVIDER_initd-functions ?= "initscripts"

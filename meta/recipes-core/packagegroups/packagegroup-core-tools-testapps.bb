@@ -10,10 +10,9 @@ PACKAGE_ARCH = "${MACHINE_ARCH}"
 
 inherit packagegroup
 
-# kexec-tools doesn't work on e5500-64b, microblaze and nios2 yet
+# kexec-tools doesn't work on e5500-64b and nios2 yet
 KEXECTOOLS ?= "kexec"
 KEXECTOOLS_e5500-64b ?= ""
-KEXECTOOLS_microblaze ?= ""
 KEXECTOOLS_nios2 ?= ""
 
 X11GLTOOLS = "\
@@ -26,7 +25,7 @@ X11GLTOOLS = "\
 
 X11TOOLS = "\
     fstests \
-    gst-examples \
+    gst-player \
     x11perf \
     xrestop \
     xwininfo \

@@ -1,11 +1,7 @@
 [Unit]
 Description=NFS Mount Daemon
-DefaultDependencies=no
-Requires=proc-fs-nfsd.mount
-After=proc-fs-nfsd.mount
-After=network.target local-fs.target
-BindsTo=nfs-server.service
-ConditionPathExists=@SYSCONFDIR@/exports
+After=rpcbind.service nfs-server.service
+Requires=rpcbind.service nfs-server.service
 
 [Service]
 EnvironmentFile=-@SYSCONFDIR@/nfs-utils.conf

@@ -1,11 +1,11 @@
-require glibc-collateral.inc
+include glibc-collateral.inc
 
 SUMMARY = "mtrace utility provided by glibc"
 DESCRIPTION = "mtrace utility provided by glibc"
 RDEPENDS_${PN} = "perl"
 RPROVIDES_${PN} = "libc-mtrace"
 
-SRC = "${COMPONENTS_DIR}/${PACKAGE_ARCH}/glibc-stash-locale/scripts"
+SRC = "${STAGING_INCDIR}/glibc-scripts-internal-${MULTIMACH_TARGET_SYS}"
 
 do_install() {
 	install -d -m 0755 ${D}${bindir}

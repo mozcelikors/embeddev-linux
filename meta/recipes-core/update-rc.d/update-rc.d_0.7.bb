@@ -1,5 +1,4 @@
 SUMMARY = "manage symlinks in /etc/rcN.d"
-HOMEPAGE = "http://github.com/philb/update-rc.d/"
 DESCRIPTION = "update-rc.d is a utility that allows the management of symlinks to the initscripts in the /etc/rcN.d directory structure."
 SECTION = "base"
 
@@ -16,7 +15,6 @@ SRC_URI = "git://github.com/philb/update-rc.d.git \
            file://check-if-symlinks-are-valid.patch \
            file://fix-to-handle-priority-numbers-correctly.patch \
           "
-UPSTREAM_CHECK_COMMITS = "1"
 
 S = "${WORKDIR}/git"
 

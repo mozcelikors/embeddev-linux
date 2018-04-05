@@ -5,6 +5,12 @@ import datetime
 import itertools
 from .commands import runCmd
 
+def get_host_dumper(d):
+    cmds = d.getVar("testimage_dump_host", True)
+    parent_dir = d.getVar("TESTIMAGE_DUMP_DIR", True)
+    return HostDumper(cmds, parent_dir)
+
+
 class BaseDumper(object):
     """ Base class to dump commands from host/target """
 
@@ -71,12 +77,13 @@ class HostDumper(BaseDumper):
             result = runCmd(cmd, ignore_status=True)
             self._write_dump(cmd.split()[0], result.output)
 
+
 class TargetDumper(BaseDumper):
     """ Class to get dumps from target, it only works with QemuRunner """
 
-    def __init__(self, cmds, parent_dir, runner):
+    def __init__(self, cmds, parent_dir, qemurunner):
         super(TargetDumper, self).__init__(cmds, parent_dir)
-        self.runner = runner
+        self.runner = qemurunner
 
     def dump_target(self, dump_dir=""):
         if dump_dir:

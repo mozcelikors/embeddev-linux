@@ -10,7 +10,7 @@ ERR_REPORT_DIR ?= "${LOG_DIR}/error-report"
 
 def errorreport_getdata(e):
     import codecs
-    logpath = e.data.getVar('ERR_REPORT_DIR')
+    logpath = e.data.getVar('ERR_REPORT_DIR', True)
     datafile = os.path.join(logpath, "error-report.txt")
     with codecs.open(datafile, 'r', 'utf-8') as f:
         data = f.read()
@@ -19,7 +19,7 @@ def errorreport_getdata(e):
 def errorreport_savedata(e, newdata, file):
     import json
     import codecs
-    logpath = e.data.getVar('ERR_REPORT_DIR')
+    logpath = e.data.getVar('ERR_REPORT_DIR', True)
     datafile = os.path.join(logpath, file)
     with codecs.open(datafile, 'w', 'utf-8') as f:
         json.dump(newdata, f, indent=4, sort_keys=True)
@@ -29,25 +29,18 @@ python errorreport_handler () {
         import json
         import codecs
 
-        def nativelsb():
-            nativelsbstr = e.data.getVar("NATIVELSBSTRING")
-            # provide a bit more host info in case of uninative build
-            if e.data.getVar('UNINATIVE_URL') != 'unset':
-                return '/'.join([nativelsbstr, lsb_distro_identifier(e.data)])
-            return nativelsbstr
-
-        logpath = e.data.getVar('ERR_REPORT_DIR')
+        logpath = e.data.getVar('ERR_REPORT_DIR', True)
         datafile = os.path.join(logpath, "error-report.txt")
 
         if isinstance(e, bb.event.BuildStarted):
             bb.utils.mkdirhier(logpath)
             data = {}
-            machine = e.data.getVar("MACHINE")
+            machine = e.data.getVar("MACHINE", True)
             data['machine'] = machine
-            data['build_sys'] = e.data.getVar("BUILD_SYS")
-            data['nativelsb'] = nativelsb()
-            data['distro'] = e.data.getVar("DISTRO")
-            data['target_sys'] = e.data.getVar("TARGET_SYS")
+            data['build_sys'] = e.data.getVar("BUILD_SYS", True)
+            data['nativelsb'] = e.data.getVar("NATIVELSBSTRING", True)
+            data['distro'] = e.data.getVar("DISTRO", True)
+            data['target_sys'] = e.data.getVar("TARGET_SYS", True)
             data['failures'] = []
             data['component'] = " ".join(e.getPkgs())
             data['branch_commit'] = str(base_detect_branch(e.data)) + ": " + str(base_detect_revision(e.data))
@@ -58,7 +51,7 @@ python errorreport_handler () {
         elif isinstance(e, bb.build.TaskFailed):
             task = e.task
             taskdata={}
-            log = e.data.getVar('BB_LOGFILE')
+            log = e.data.getVar('BB_LOGFILE', True)
             taskdata['package'] = e.data.expand("${PF}")
             taskdata['task'] = task
             if log:
@@ -68,7 +61,7 @@ python errorreport_handler () {
 
                     # Replace host-specific paths so the logs are cleaner
                     for d in ("TOPDIR", "TMPDIR"):
-                        s = e.data.getVar(d)
+                        s = e.data.getVar(d, True)
                         if s:
                             logdata = logdata.replace(s, d)
 
@@ -99,7 +92,7 @@ python errorreport_handler () {
             bb.utils.unlockfile(lock)
             failures = jsondata['failures']
             if(len(failures) > 0):
-                filename = "error_report_" + e.data.getVar("BUILDNAME")+".txt"
+                filename = "error_report_" + e.data.getVar("BUILDNAME", True)+".txt"
                 datafile = errorreport_savedata(e, jsondata, filename)
                 bb.note("The errors for this build are stored in %s\nYou can send the errors to a reports server by running:\n  send-error-report %s [-s server]" % (datafile, datafile))
                 bb.note("The contents of these logs will be posted in public if you use the above command with the default server. Please ensure you remove any identifying or proprietary information when prompted before sending.")

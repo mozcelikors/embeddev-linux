@@ -5,31 +5,29 @@ LICENSE = "GPLv2+"
 LIC_FILES_CHKSUM = "file://COPYING;md5=0636e73ff0215e8d672dc4c32c317bb3 \
                     file://include/common.h;beginline=1;endline=17;md5=ba05b07912a44ea2bf81ce409380049c"
 
-inherit autotools pkgconfig update-alternatives
-
 DEPENDS = "zlib lzo e2fsprogs util-linux"
 
-PV = "2.0.1+${SRCPV}"
+PV = "1.5.2"
 
-SRCREV = "9c6173559f95e939e66efb2ec3193d6f3618cf69"
+SRCREV = "aea36417067dade75192bafa03af70b6eb2677b1"
 SRC_URI = "git://git.infradead.org/mtd-utils.git \
            file://add-exclusion-to-mkfs-jffs2-git-2.patch \
+           file://fix-armv7-neon-alignment.patch \
+           file://mtd-utils-fix-corrupt-cleanmarker-with-flash_erase--j-command.patch \
+           file://0001-Fix-build-with-musl.patch \
 "
+
+SRC_URI_append_libc-musl = " file://010-fix-rpmatch.patch "
 
 S = "${WORKDIR}/git/"
 
 # xattr support creates an additional compile-time dependency on acl because
 # the sys/acl.h header is needed. libacl is not needed and thus enabling xattr
 # regardless whether acl is enabled or disabled in the distro should be okay.
-PACKAGECONFIG ?= "${@bb.utils.filter('DISTRO_FEATURES', 'xattr', d)}"
+PACKAGECONFIG ?= "${@bb.utils.contains('DISTRO_FEATURES', 'xattr', 'xattr', '', d)}"
 PACKAGECONFIG[xattr] = ",,acl,"
 
 EXTRA_OEMAKE = "'CC=${CC}' 'RANLIB=${RANLIB}' 'AR=${AR}' 'CFLAGS=${CFLAGS} ${@bb.utils.contains('PACKAGECONFIG', 'xattr', '', '-DWITHOUT_XATTR', d)} -I${S}/include' 'BUILDDIR=${S}'"
-
-ALTERNATIVE_${PN} = "flash_eraseall"
-ALTERNATIVE_LINK_NAME[flash_eraseall] = "${sbindir}/flash_eraseall"
-# Use higher priority than busybox's flash_eraseall (created when built with CONFIG_FLASH_ERASEALL)
-ALTERNATIVE_PRIORITY[flash_eraseall] = "100"
 
 do_install () {
 	oe_runmake install DESTDIR=${D} SBINDIR=${sbindir} MANDIR=${mandir} INCLUDEDIR=${includedir}

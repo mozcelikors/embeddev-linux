@@ -30,22 +30,16 @@ INITSCRIPT_NAME = "tcf-agent"
 INITSCRIPT_PARAMS = "start 99 3 5 . stop 20 0 1 2 6 ."
 
 # mangling needed for make
-MAKE_ARCH = "`echo ${TARGET_ARCH} | sed s,i.86,i686, | sed s,aarch64.*,a64,`"
+MAKE_ARCH = "`echo ${TARGET_ARCH} | sed s,i.86,i686,`"
 MAKE_OS = "`echo ${TARGET_OS} | sed s,^linux.*,GNU/Linux,`"
 
 EXTRA_OEMAKE = "MACHINE=${MAKE_ARCH} OPSYS=${MAKE_OS} 'CC=${CC}' 'AR=${AR}'"
 
-LCL_STOP_SERVICES = "-DSERVICE_RunControl=0 -DSERVICE_Breakpoints=0 \
+# They don't build on ARM and we don't need them actually.
+CFLAGS += "-DSERVICE_RunControl=0 -DSERVICE_Breakpoints=0 \
     -DSERVICE_Memory=0 -DSERVICE_Registers=0 -DSERVICE_MemoryMap=0 \
-    -DSERVICE_StackTrace=0 -DSERVICE_Expressions=0"
-
-
-# These features don't compile for several cases.
-#
-CFLAGS_append_mips = " ${LCL_STOP_SERVICES}"
-CFLAGS_append_mips64 = " ${LCL_STOP_SERVICES}"
-CFLAGS_append_libc-musl = " ${LCL_STOP_SERVICES}"
-CFLAGS_append_powerpc64 = " ${LCL_STOP_SERVICES}"
+    -DSERVICE_StackTrace=0 -DSERVICE_Symbols=0 -DSERVICE_LineNumbers=0 \
+    -DSERVICE_Expressions=0"
 
 do_install() {
 	oe_runmake install INSTALLROOT=${D}

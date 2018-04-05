@@ -20,11 +20,11 @@ python uninative_event_fetchloader() {
     loader isn't already present.
     """
 
-    chksum = d.getVarFlag("UNINATIVE_CHECKSUM", d.getVar("BUILD_ARCH"))
+    chksum = d.getVarFlag("UNINATIVE_CHECKSUM", d.getVar("BUILD_ARCH", True), True)
     if not chksum:
-        bb.fatal("Uninative selected but not configured correctly, please set UNINATIVE_CHECKSUM[%s]" % d.getVar("BUILD_ARCH"))
+        bb.fatal("Uninative selected but not configured correctly, please set UNINATIVE_CHECKSUM[%s]" % d.getVar("BUILD_ARCH", True))
 
-    loader = d.getVar("UNINATIVE_LOADER")
+    loader = d.getVar("UNINATIVE_LOADER", True)
     loaderchksum = loader + ".chksum"
     if os.path.exists(loader) and os.path.exists(loaderchksum):
         with open(loaderchksum, "r") as f:
@@ -37,24 +37,18 @@ python uninative_event_fetchloader() {
         # Save and restore cwd as Fetch.download() does a chdir()
         olddir = os.getcwd()
 
-        tarball = d.getVar("UNINATIVE_TARBALL")
-        tarballdir = os.path.join(d.getVar("UNINATIVE_DLDIR"), chksum)
+        tarball = d.getVar("UNINATIVE_TARBALL", True)
+        tarballdir = os.path.join(d.getVar("UNINATIVE_DLDIR", True), chksum)
         tarballpath = os.path.join(tarballdir, tarball)
 
         if not os.path.exists(tarballpath):
             bb.utils.mkdirhier(tarballdir)
-            if d.getVar("UNINATIVE_URL") == "unset":
+            if d.getVar("UNINATIVE_URL", True) == "unset":
                 bb.fatal("Uninative selected but not configured, please set UNINATIVE_URL")
 
             localdata = bb.data.createCopy(d)
             localdata.setVar('FILESPATH', "")
             localdata.setVar('DL_DIR', tarballdir)
-            # Our games with path manipulation of DL_DIR mean standard PREMIRRORS don't work
-            # and we can't easily put 'chksum' into the url path from a url parameter with
-            # the current fetcher url handling
-            ownmirror = d.getVar('SOURCE_MIRROR_URL')
-            if ownmirror:
-                localdata.appendVar("PREMIRRORS", " ${UNINATIVE_URL}${UNINATIVE_TARBALL} ${SOURCE_MIRROR_URL}/uninative/%s/${UNINATIVE_TARBALL}" % chksum)
 
             srcuri = d.expand("${UNINATIVE_URL}${UNINATIVE_TARBALL};sha256sum=%s" % chksum)
             bb.note("Fetching uninative binary shim from %s" % srcuri)
@@ -63,37 +57,23 @@ python uninative_event_fetchloader() {
             fetcher.download()
             localpath = fetcher.localpath(srcuri)
             if localpath != tarballpath and os.path.exists(localpath) and not os.path.exists(tarballpath):
-                # Follow the symlink behavior from the bitbake fetch2.
-                # This will cover the case where an existing symlink is broken
-                # as well as if there are two processes trying to create it
-                # at the same time.
-                if os.path.islink(tarballpath):
-                    # Broken symbolic link
-                    os.unlink(tarballpath)
-
-                # Deal with two processes trying to make symlink at once
-                try:
                     os.symlink(localpath, tarballpath)
-                except FileExistsError:
-                    pass
 
-        cmd = d.expand("\
-mkdir -p ${UNINATIVE_STAGING_DIR}-uninative; \
-cd ${UNINATIVE_STAGING_DIR}-uninative; \
-tar -xjf ${UNINATIVE_DLDIR}/%s/${UNINATIVE_TARBALL}; \
-${UNINATIVE_STAGING_DIR}-uninative/relocate_sdk.py \
-  ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux \
-  ${UNINATIVE_LOADER} \
-  ${UNINATIVE_LOADER} \
-  ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux/${bindir_native}/patchelf-uninative \
-  ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux${base_libdir_native}/libc*.so" % chksum)
-        subprocess.check_output(cmd, shell=True)
+        # ldd output is "ldd (Ubuntu GLIBC 2.23-0ubuntu10) 2.23", extract last option from first line
+        glibcver = subprocess.check_output(["ldd", "--version"]).decode('utf-8').split('\n')[0].split()[-1]
+        if bb.utils.vercmp_string(d.getVar("UNINATIVE_MAXGLIBCVERSION", True), glibcver) < 0:
+            raise RuntimeError("Your host glibc verson (%s) is newer than that in uninative (%s). Disabling uninative so that sstate is not corrupted." % (glibcver, d.getVar("UNINATIVE_MAXGLIBCVERSION", True)))
+
+        cmd = d.expand("mkdir -p ${UNINATIVE_STAGING_DIR}-uninative; cd ${UNINATIVE_STAGING_DIR}-uninative; tar -xjf ${UNINATIVE_DLDIR}/%s/${UNINATIVE_TARBALL}; ${UNINATIVE_STAGING_DIR}-uninative/relocate_sdk.py ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux ${UNINATIVE_LOADER} ${UNINATIVE_LOADER} ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux/${bindir_native}/patchelf-uninative ${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux${base_libdir_native}/libc*.so" % chksum)
+        subprocess.check_call(cmd, shell=True)
 
         with open(loaderchksum, "w") as f:
             f.write(chksum)
 
         enable_uninative(d)
 
+    except RuntimeError as e:
+        bb.warn(str(e))
     except bb.fetch2.BBFetchException as exc:
         bb.warn("Disabling uninative as unable to fetch uninative tarball: %s" % str(exc))
         bb.warn("To build your own uninative loader, please bitbake uninative-tarball and set UNINATIVE_TARBALL appropriately.")
@@ -113,13 +93,13 @@ python uninative_event_enable() {
 }
 
 def enable_uninative(d):
-    loader = d.getVar("UNINATIVE_LOADER")
+    loader = d.getVar("UNINATIVE_LOADER", True)
     if os.path.exists(loader):
         bb.debug(2, "Enabling uninative")
         d.setVar("NATIVELSBSTRING", "universal%s" % oe.utils.host_gcc_version(d))
         d.appendVar("SSTATEPOSTUNPACKFUNCS", " uninative_changeinterp")
-        d.appendVarFlag("SSTATEPOSTUNPACKFUNCS", "vardepvalueexclude", "| uninative_changeinterp")
-        d.prependVar("PATH", "${STAGING_DIR}-uninative/${BUILD_ARCH}-linux${bindir_native}:")
+        d.setVar("EXTRAINSTALLFUNCS_class-native", "uninative_relocate")
+        d.prependVar("PATH", "${UNINATIVE_STAGING_DIR}-uninative/${BUILD_ARCH}-linux${bindir_native}:")
 
 python uninative_changeinterp () {
     import subprocess
@@ -129,7 +109,7 @@ python uninative_changeinterp () {
     if not (bb.data.inherits_class('native', d) or bb.data.inherits_class('crosssdk', d) or bb.data.inherits_class('cross', d)):
         return
 
-    sstateinst = d.getVar('SSTATE_INSTDIR')
+    sstateinst = d.getVar('SSTATE_INSTDIR', True)
     for walkroot, dirs, files in os.walk(sstateinst):
         for file in files:
             if file.endswith(".so") or ".so." in file:
@@ -148,5 +128,28 @@ python uninative_changeinterp () {
             if not elf.isDynamic():
                 continue
 
-            subprocess.check_output(("patchelf-uninative", "--set-interpreter", d.getVar("UNINATIVE_LOADER"), f), stderr=subprocess.STDOUT)
+            try:
+                subprocess.check_output(("patchelf-uninative", "--set-interpreter",
+                                         d.getVar("UNINATIVE_LOADER", True), f),
+                                        stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                bb.fatal("'%s' failed with exit code %d and the following output:\n%s" %
+                         (e.cmd, e.returncode, e.output))
+}
+
+# In morty we have a problem since files can come from sstate or be built locally. Mixing interpreters
+# for local vs. sstate objects can result in hard to debug futex hangs in shared memory regions (e.g.
+# from smart/rpm/libdb).
+# To resolve this, relocate natively build binaries too. This fix isn't needed post morty since RSS
+# always uses uninative interpreter manipulations for code path simplicity.
+EXTRAINSTALLFUNCS = ""
+do_install[vardepsexclude] = "uninative_relocate"
+do_install[postfuncs] += "${EXTRAINSTALLFUNCS}"
+
+python uninative_relocate () {
+    # (re)Use uninative_changeinterp() to change the interpreter in files in ${D}
+    orig = d.getVar('SSTATE_INSTDIR', False)
+    d.setVar('SSTATE_INSTDIR', "${D}")
+    bb.build.exec_func("uninative_changeinterp", d)
+    d.setVar('SSTATE_INSTDIR', orig)
 }

@@ -5,12 +5,12 @@ SECTION = "devel/python"
 # bump this on every change in contrib/python/generate-manifest-2.7.py
 INC_PR = "r1"
 
-LIC_FILES_CHKSUM = "file://LICENSE;md5=f741e51de91d4eeea5930b9c3c7fa69d"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=6b60258130e4ed10d3101517eb5b9385"
 
 SRC_URI = "http://www.python.org/ftp/python/${PV}/Python-${PV}.tar.xz"
 
-SRC_URI[md5sum] = "1f6db41ad91d9eb0a6f0c769b8613c5b"
-SRC_URI[sha256sum] = "71ffb26e09e78650e424929b2b457b9c912ac216576e6bd9e7d204ed03296a66"
+SRC_URI[md5sum] = "57dffcee9cee8bb2ab5f82af1d8e9a69"
+SRC_URI[sha256sum] = "d7837121dd5652a05fef807c361909d255d173280c4e1a4ded94d73d80a1f978"
 
 # python recipe is actually python 2.x
 # also, exclude pre-releases for both python 2.x and 3.x
@@ -20,7 +20,7 @@ CVE_PRODUCT = "python"
 
 PYTHON_MAJMIN = "2.7"
 
-inherit autotools pkgconfig
+inherit autotools
 
 EXTRA_OECONF = "\
   --with-threads \
@@ -32,9 +32,3 @@ EXTRA_OECONF = "\
   ac_cv_header_bluetooth_bluetooth_h=no ac_cv_header_bluetooth_h=no \
   ${PYTHONLSBOPTS} \
 "
-
-do_install_append () {
-	sed -i -e 's:${HOSTTOOLS_DIR}/install:install:g' \
-		-e 's:${HOSTTOOLS_DIR}/mkdir:mkdir:g' \
-		${D}/${libdir}/python${PYTHON_MAJMIN}/_sysconfigdata.py
-}

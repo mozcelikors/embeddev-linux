@@ -27,5 +27,3 @@ do_install_append () {
 }
 
 FILES_${PN}-doc += "${datadir}/texinfo"
-
-RDEPENDS_${PN} = "perl"

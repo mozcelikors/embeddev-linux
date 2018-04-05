@@ -5,25 +5,27 @@ require gcc-configure-common.inc
 INHIBIT_DEFAULT_DEPS = "1"
 
 do_configure () {
+	target=`echo ${TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
 	install -d ${D}${base_libdir} ${D}${libdir}
+	hardlinkdir ${STAGING_INCDIR_NATIVE}/${LIBGCCBUILDTREENAME}$target/ ${B}
 	mkdir -p ${B}/${BPN}
-	mkdir -p ${B}/${TARGET_SYS}/${BPN}/
+	mkdir -p ${B}/$target/${BPN}/
 	cd ${B}/${BPN}
 	chmod a+x ${S}/${BPN}/configure
 	relpath=${@os.path.relpath("${S}/${BPN}", "${B}/${BPN}")}
 	$relpath/configure ${CONFIGUREOPTS} ${EXTRA_OECONF}
 }
-EXTRACONFFUNCS += "extract_stashed_builddir"
-do_configure[depends] += "${COMPILERDEP}"
 
 do_compile () {
+	target=`echo ${TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
 	cd ${B}/${BPN}
-	oe_runmake MULTIBUILDTOP=${B}/${TARGET_SYS}/${BPN}/
+	oe_runmake MULTIBUILDTOP=${B}/$target/${BPN}/
 }
 
 do_install () {
+	target=`echo ${TARGET_SYS} | sed -e s#-${SDKPKGSUFFIX}##`
 	cd ${B}/${BPN}
-	oe_runmake 'DESTDIR=${D}' MULTIBUILDTOP=${B}/${TARGET_SYS}/${BPN}/ install
+	oe_runmake 'DESTDIR=${D}' MULTIBUILDTOP=${B}/$target/${BPN}/ install
 
 	# Move libgcc_s into /lib
 	mkdir -p ${D}${base_libdir}
@@ -62,18 +64,18 @@ addtask multilib_install after do_install before do_package do_populate_sysroot
 fakeroot python do_multilib_install() {
     import re
 
-    multilibs = d.getVar('MULTILIB_VARIANTS')
+    multilibs = d.getVar('MULTILIB_VARIANTS', True)
     if not multilibs or bb.data.inherits_class('nativesdk', d):
         return
 
-    binv = d.getVar('BINV')
+    binv = d.getVar('BINV', True)
 
-    mlprefix = d.getVar('MLPREFIX')
-    if ('%slibgcc' % mlprefix) != d.getVar('PN'):
+    mlprefix = d.getVar('MLPREFIX', True)
+    if ('%slibgcc' % mlprefix) != d.getVar('PN', True):
         return
 
     if mlprefix:
-        orig_tune = d.getVar('DEFAULTTUNE_MULTILIB_ORIGINAL')
+        orig_tune = d.getVar('DEFAULTTUNE_MULTILIB_ORIGINAL', True)
         orig_tune_params = get_tune_parameters(orig_tune, d)
         orig_tune_baselib = orig_tune_params['baselib']
         orig_tune_bitness = orig_tune_baselib.replace('lib', '')
@@ -81,10 +83,10 @@ fakeroot python do_multilib_install() {
             orig_tune_bitness = '32'
 
         src = '../../../' + orig_tune_baselib + '/' + \
-            d.getVar('TARGET_SYS_MULTILIB_ORIGINAL') + '/' + binv + '/'
+            d.getVar('TARGET_SYS_MULTILIB_ORIGINAL', True) + '/' + binv + '/'
 
-        dest = d.getVar('D') + d.getVar('libdir') + '/' + \
-            d.getVar('TARGET_SYS') + '/' + binv + '/' + orig_tune_bitness
+        dest = d.getVar('D', True) + d.getVar('libdir', True) + '/' + \
+            d.getVar('TARGET_SYS', True) + '/' + binv + '/' + orig_tune_bitness
 
         if os.path.lexists(dest):
             os.unlink(dest)
@@ -93,7 +95,7 @@ fakeroot python do_multilib_install() {
 
 
     for ml in multilibs.split():
-        tune = d.getVar('DEFAULTTUNE_virtclass-multilib-' + ml)
+        tune = d.getVar('DEFAULTTUNE_virtclass-multilib-' + ml, True)
         if not tune:
             bb.warn('DEFAULTTUNE_virtclass-multilib-%s is not defined. Skipping...' % ml)
             continue
@@ -116,11 +118,11 @@ fakeroot python do_multilib_install() {
             libcextension = ''
 
         src = '../../../' + tune_baselib + '/' + \
-            tune_arch + d.getVar('TARGET_VENDOR') + 'ml' + ml + \
-            '-' + d.getVar('TARGET_OS') + libcextension +  '/' + binv + '/'
+            tune_arch + d.getVar('TARGET_VENDOR', True) + 'ml' + ml + \
+            '-' + d.getVar('TARGET_OS', True) + libcextension +  '/' + binv + '/'
 
-        dest = d.getVar('D') + d.getVar('libdir') + '/' + \
-            d.getVar('TARGET_SYS') + '/' + binv + '/' + tune_bitness
+        dest = d.getVar('D', True) + d.getVar('libdir', True) + '/' + \
+            d.getVar('TARGET_SYS', True) + '/' + binv + '/' + tune_bitness
 
         if os.path.lexists(dest):
             os.unlink(dest)
@@ -129,7 +131,7 @@ fakeroot python do_multilib_install() {
 
 def get_original_os(d):
     vendoros = d.expand('${TARGET_ARCH}${ORIG_TARGET_VENDOR}-${TARGET_OS}')
-    for suffix in [d.getVar('ABIEXTENSION'), d.getVar('LIBCEXTENSION')]:
+    for suffix in [d.getVar('ABIEXTENSION', True), d.getVar('LIBCEXTENSION', True)]:
         if suffix and vendoros.endswith(suffix):
             vendoros = vendoros[:-len(suffix)]
     # Arm must use linux-gnueabi not linux as only the former is accepted by gcc
@@ -145,11 +147,11 @@ fakeroot python do_extra_symlinks() {
     if bb.data.inherits_class('nativesdk', d):
         return
 
-    targetsys = d.getVar('BASETARGET_SYS')
+    targetsys = d.getVar('BASETARGET_SYS', True)
 
-    if targetsys != d.getVar('TARGET_SYS'):
-        dest = d.getVar('D') + d.getVar('libdir') + '/' + targetsys
-        src = d.getVar('TARGET_SYS')
-        if not os.path.lexists(dest) and os.path.lexists(d.getVar('D') + d.getVar('libdir')):
+    if targetsys != d.getVar('TARGET_SYS', True):
+        dest = d.getVar('D', True) + d.getVar('libdir', True) + '/' + targetsys
+        src = d.getVar('TARGET_SYS', True)
+        if not os.path.lexists(dest) and os.path.lexists(d.getVar('D', True) + d.getVar('libdir', True)):
             os.symlink(src, dest)
 }

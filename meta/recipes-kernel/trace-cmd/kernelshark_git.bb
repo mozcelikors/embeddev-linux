@@ -15,7 +15,7 @@ ANY_OF_DISTRO_FEATURES = "${GTK2DISTROFEATURES}"
 EXTRA_OEMAKE = "\
     'prefix=${prefix}' \
     'bindir_relative=${@oe.path.relative(prefix, bindir)}' \
-    'libdir=${libdir}' \
+    'libdir=${@oe.path.relative(prefix, libdir)}' \
     NO_PYTHON=1 \
     gui \
 "
@@ -28,6 +28,5 @@ do_install() {
     oe_runmake DESTDIR="${D}" install_gui
     rm ${D}${bindir}/trace-cmd
     rm -rf ${D}${libdir}/trace-cmd
-    rm -rf ${D}${sysconfdir}/bash_completion.d/trace-cmd.bash
     rmdir ${D}${libdir}
 }
