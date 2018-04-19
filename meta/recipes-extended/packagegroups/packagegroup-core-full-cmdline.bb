@@ -31,7 +31,7 @@ python __anonymous () {
     namemap["packagegroup-core-full-cmdline-initscripts"] = "packagegroup-core-initscripts"
     namemap["packagegroup-core-full-cmdline-sys-services"] = "packagegroup-core-sys-services"
 
-    packages = d.getVar("PACKAGES", True).split()
+    packages = d.getVar("PACKAGES").split()
     for pkg in packages:
         if pkg.endswith('-dev'):
             mapped = namemap.get(pkg[:-4], None)
@@ -86,7 +86,6 @@ RDEPENDS_packagegroup-core-full-cmdline-utils = "\
     mc-fish \
     mc-helpers \
     mc-helpers-perl \
-    mc-helpers-python \
     mktemp \
     ncurses \
     net-tools \
@@ -110,7 +109,6 @@ RDEPENDS_packagegroup-core-full-cmdline-extended = "\
     "
 
 RDEPENDS_packagegroup-core-full-cmdline-dev-utils = "\
-    byacc \
     diffutils \
     m4 \
     make \

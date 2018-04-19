@@ -1,5 +1,8 @@
 SUMMARY = "Utilities and libraries for producing multi-lingual messages"
-DESCRIPTION = "GNU gettext is a set of tools that provides a framework to help other programs produce multi-lingual messages. These tools include a set of conventions about how programs should be written to support message catalogs, a directory and file naming organization for the message catalogs themselves, a runtime library supporting the retrieval of translated messages, and a few stand-alone programs to massage in various ways the sets of translatable and already translated strings."
+DESCRIPTION = "GNU gettext is a set of tools that provides a framework to help other programs produce multi-lingual messages. \
+These tools include a set of conventions about how programs should be written to support message catalogs, a directory and file \
+naming organization for the message catalogs themselves, a runtime library supporting the retrieval of translated messages, and \
+a few stand-alone programs to massage in various ways the sets of translatable and already translated strings."
 HOMEPAGE = "http://www.gnu.org/software/gettext/gettext.html"
 SECTION = "libs"
 LICENSE = "GPLv3+ & LGPL-2.1+"
@@ -13,14 +16,13 @@ RCONFLICTS_${PN} = "proxy-libintl"
 SRC_URI = "${GNU_MIRROR}/gettext/gettext-${PV}.tar.gz \
 	   file://parallel.patch \
 	   file://add-with-bisonlocaledir.patch \
+	   file://cr-statement.c-timsort.h-fix-formatting-issues.patch \
 "
 
 SRC_URI[md5sum] = "97e034cf8ce5ba73a28ff6c3c0638092"
 SRC_URI[sha256sum] = "ff942af0e438ced4a8b0ea4b0b6e0d6d657157c5e2364de57baa279c1c125c43"
 
 PACKAGECONFIG[msgcat-curses] = "--with-libncurses-prefix=${STAGING_LIBDIR}/..,--disable-curses,ncurses,"
-
-LDFLAGS_prepend_libc-uclibc = " -lrt -lpthread "
 
 inherit autotools texinfo
 
@@ -82,15 +84,9 @@ FILES_gettext-runtime = "${bindir}/gettext \
                          ${libdir}/libasprintf.so* \
                          ${libdir}/GNU.Gettext.dll \
                         "
-FILES_gettext-runtime_append_libc-uclibc = " ${libdir}/libintl.so.* \
-                                             ${libdir}/charset.alias \
-                                           "
 FILES_gettext-runtime-dev += "${libdir}/libasprintf.a \
                       ${includedir}/autosprintf.h \
                      "
-FILES_gettext-runtime-dev_append_libc-uclibc = " ${libdir}/libintl.so \
-                                                 ${includedir}/libintl.h \
-                                               "
 FILES_gettext-runtime-doc = "${mandir}/man1/gettext.* \
                              ${mandir}/man1/ngettext.* \
                              ${mandir}/man1/envsubst.* \
@@ -115,6 +111,10 @@ do_install_append_class-native () {
 	rm ${D}${datadir}/gettext/config.rpath
 	rm ${D}${datadir}/gettext/po/Makefile.in.in
 	rm ${D}${datadir}/gettext/po/remove-potcdate.sin
+
+        create_wrapper ${D}${bindir}/msgfmt \
+                GETTEXTDATADIR="${STAGING_DATADIR_NATIVE}/gettext-0.19.8/"
+
 }
 
 BBCLASSEXTEND = "native nativesdk"

@@ -26,8 +26,8 @@ python do_menuconfig() {
     except OSError:
         mtime = 0
 
-    oe_terminal("${SHELL} -c \"make %s; if [ \$? -ne 0 ]; then echo 'Command failed.'; printf 'Press any key to continue... '; read r; fi\"" % d.getVar('KCONFIG_CONFIG_COMMAND', True),
-                d.getVar('PN', True ) + ' Configuration', d)
+    oe_terminal("${SHELL} -c \"make %s; if [ \$? -ne 0 ]; then echo 'Command failed.'; printf 'Press any key to continue... '; read r; fi\"" % d.getVar('KCONFIG_CONFIG_COMMAND'),
+                d.getVar('PN') + ' Configuration', d)
 
     # FIXME this check can be removed when the minimum bitbake version has been bumped
     if hasattr(bb.build, 'write_taint'):
@@ -49,7 +49,7 @@ python do_diffconfig() {
     import shutil
     import subprocess
 
-    workdir = d.getVar('WORKDIR', True)
+    workdir = d.getVar('WORKDIR')
     fragment = workdir + '/fragment.cfg'
     configorig = '.config.orig'
     config = '.config'
@@ -64,7 +64,8 @@ python do_diffconfig() {
     if isdiff:
         statement = 'diff --unchanged-line-format= --old-line-format= --new-line-format="%L" ' + configorig + ' ' + config + '>' + fragment
         subprocess.call(statement, shell=True)
-
+        # No need to check the exit code as we know it's going to be
+        # non-zero, but that's what we expect.
         shutil.copy(configorig, config)
 
         bb.plain("Config fragment has been dumped into:\n %s" % fragment)

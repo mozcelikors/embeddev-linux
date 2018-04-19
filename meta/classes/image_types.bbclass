@@ -23,22 +23,33 @@ def imagetypes_getdepends(d):
         types = typestring.split(".")
         return types[0], types[1:]
 
-    fstypes = set((d.getVar('IMAGE_FSTYPES', True) or "").split())
-    fstypes |= set((d.getVar('IMAGE_FSTYPES_DEBUGFS', True) or "").split())
+    fstypes = set((d.getVar('IMAGE_FSTYPES') or "").split())
+    fstypes |= set((d.getVar('IMAGE_FSTYPES_DEBUGFS') or "").split())
 
+    deprecated = set()
     deps = set()
     for typestring in fstypes:
         basetype, resttypes = split_types(typestring)
-        adddep(d.getVar('IMAGE_DEPENDS_%s' % basetype, True) , deps)
 
-        for typedepends in (d.getVar("IMAGE_TYPEDEP_%s" % basetype, True) or "").split():
+        var = "IMAGE_DEPENDS_%s" % basetype
+        if d.getVar(var) is not None:
+            deprecated.add(var)
+
+        for typedepends in (d.getVar("IMAGE_TYPEDEP_%s" % basetype) or "").split():
             base, rest = split_types(typedepends)
-            adddep(d.getVar('IMAGE_DEPENDS_%s' % base, True) , deps)
             resttypes += rest
 
+            var = "IMAGE_DEPENDS_%s" % base
+            if d.getVar(var) is not None:
+                deprecated.add(var)
+
         for ctype in resttypes:
-            adddep(d.getVar("CONVERSION_DEPENDS_%s" % ctype, True), deps)
-            adddep(d.getVar("COMPRESS_DEPENDS_%s" % ctype, True), deps)
+            adddep(d.getVar("CONVERSION_DEPENDS_%s" % ctype), deps)
+            adddep(d.getVar("COMPRESS_DEPENDS_%s" % ctype), deps)
+
+    if deprecated:
+        bb.fatal('Deprecated variable(s) found: "%s". '
+                 'Use do_image_<type>[depends] += "<recipe>:<task>" instead' % ', '.join(deprecated))
 
     # Sort the set so that ordering is consistant
     return " ".join(sorted(deps))
@@ -72,8 +83,14 @@ oe_mkext234fs () {
 		eval COUNT=\"$MIN_COUNT\"
 	fi
 	# Create a sparse image block
+	bbdebug 1 Executing "dd if=/dev/zero of=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype seek=$ROOTFS_SIZE count=$COUNT bs=1024"
 	dd if=/dev/zero of=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype seek=$ROOTFS_SIZE count=$COUNT bs=1024
+	bbdebug 1 "Actual Rootfs size:  `du -s ${IMAGE_ROOTFS}`"
+	bbdebug 1 "Actual Partion size: `ls -s ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype`"
+	bbdebug 1 Executing "mkfs.$fstype -F $extra_imagecmd ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype -d ${IMAGE_ROOTFS}"
 	mkfs.$fstype -F $extra_imagecmd ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype -d ${IMAGE_ROOTFS}
+	# Error codes 0-3 indicate successfull operation of fsck (no errors or errors corrected)
+	fsck.$fstype -pvfD ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.$fstype || [ $? -le 3 ]
 }
 
 IMAGE_CMD_ext2 = "oe_mkext234fs ext2 ${EXTRA_IMAGECMD}"
@@ -82,30 +99,33 @@ IMAGE_CMD_ext4 = "oe_mkext234fs ext4 ${EXTRA_IMAGECMD}"
 
 MIN_BTRFS_SIZE ?= "16384"
 IMAGE_CMD_btrfs () {
-	if [ ${ROOTFS_SIZE} -gt ${MIN_BTRFS_SIZE} ]; then
-		dd if=/dev/zero of=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.btrfs count=${ROOTFS_SIZE} bs=1024
-		mkfs.btrfs ${EXTRA_IMAGECMD} -r ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.btrfs
-	else
-		bbfatal "Rootfs is too small for BTRFS (Rootfs Actual Size: ${ROOTFS_SIZE}, BTRFS Minimum Size: ${MIN_BTRFS_SIZE})"
+	size=${ROOTFS_SIZE}
+	if [ ${size} -lt ${MIN_BTRFS_SIZE} ] ; then
+		size=${MIN_BTRFS_SIZE}
+		bbwarn "Rootfs size is too small for BTRFS. Filesystem will be extended to ${size}K"
 	fi
+	dd if=/dev/zero of=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.btrfs seek=${size} count=0 bs=1024
+	mkfs.btrfs ${EXTRA_IMAGECMD} -r ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.btrfs
 }
 
 IMAGE_CMD_squashfs = "mksquashfs ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.squashfs ${EXTRA_IMAGECMD} -noappend"
 IMAGE_CMD_squashfs-xz = "mksquashfs ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.squashfs-xz ${EXTRA_IMAGECMD} -noappend -comp xz"
 IMAGE_CMD_squashfs-lzo = "mksquashfs ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.squashfs-lzo ${EXTRA_IMAGECMD} -noappend -comp lzo"
+IMAGE_CMD_squashfs-lz4 = "mksquashfs ${IMAGE_ROOTFS} ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.squashfs-lz4 ${EXTRA_IMAGECMD} -noappend -comp lz4"
 
 # By default, tar from the host is used, which can be quite old. If
 # you need special parameters (like --xattrs) which are only supported
 # by GNU tar upstream >= 1.27, then override that default:
 # IMAGE_CMD_TAR = "tar --xattrs --xattrs-include=*"
-# IMAGE_DEPENDS_tar_append = " tar-replacement-native"
+# do_image_tar[depends] += "tar-replacement-native:do_populate_sysroot"
 # EXTRANATIVEPATH += "tar-native"
 #
 # The GNU documentation does not specify whether --xattrs-include is necessary.
 # In practice, it turned out to be not needed when creating archives and
 # required when extracting, but it seems prudent to use it in both cases.
 IMAGE_CMD_TAR ?= "tar"
-IMAGE_CMD_tar = "${IMAGE_CMD_TAR} -cvf ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.tar -C ${IMAGE_ROOTFS} ."
+# ignore return code 1 "file changed as we read it" as other tasks(e.g. do_image_wic) may be hardlinking rootfs
+IMAGE_CMD_tar = "${IMAGE_CMD_TAR} -cf ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.tar -C ${IMAGE_ROOTFS} . || [ $? -eq 1 ]"
 
 do_image_cpio[cleandirs] += "${WORKDIR}/cpio_append"
 IMAGE_CMD_cpio () {
@@ -132,7 +152,7 @@ ELF_APPEND ?= "ramdisk_size=32768 root=/dev/ram0 rw console="
 
 IMAGE_CMD_elf () {
 	test -f ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.elf && rm -f ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.elf
-	mkelfImage --kernel=${ELF_KERNEL} --initrd=${DEPLOY_DIR_IMAGE}/${IMAGE_LINK_NAME}.cpio.gz --output=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.elf --append='${ELF_APPEND}' ${EXTRA_IMAGECMD}
+	mkelfImage --kernel=${ELF_KERNEL} --initrd=${IMGDEPLOYDIR}/${IMAGE_LINK_NAME}.cpio.gz --output=${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.elf --append='${ELF_APPEND}' ${EXTRA_IMAGECMD}
 }
 
 IMAGE_TYPEDEP_elf = "cpio.gz"
@@ -142,6 +162,12 @@ UBI_VOLNAME ?= "${MACHINE}-rootfs"
 multiubi_mkfs() {
 	local mkubifs_args="$1"
 	local ubinize_args="$2"
+    
+        # Added prompt error message for ubi and ubifs image creation.
+        if [ -z "$mkubifs_args"] || [ -z "$ubinize_args" ]; then
+            bbfatal "MKUBIFS_ARGS and UBINIZE_ARGS have to be set, see http://www.linux-mtd.infradead.org/faq/ubifs.html for details"
+        fi
+    
 	if [ -z "$3" ]; then
 		local vname=""
 	else
@@ -192,95 +218,9 @@ IMAGE_CMD_ubi () {
 
 IMAGE_CMD_ubifs = "mkfs.ubifs -r ${IMAGE_ROOTFS} -o ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.ubifs ${MKUBIFS_ARGS}"
 
-WKS_FILE ??= "${IMAGE_BASENAME}.${MACHINE}.wks"
-WKS_FILES ?= "${WKS_FILE} ${IMAGE_BASENAME}.wks"
-WKS_SEARCH_PATH ?= "${THISDIR}:${@':'.join('%s/scripts/lib/wic/canned-wks' % l for l in '${BBPATH}:${COREBASE}'.split(':'))}"
-WKS_FULL_PATH = "${@wks_search('${WKS_FILES}'.split(), '${WKS_SEARCH_PATH}') or ''}"
-
-def wks_search(files, search_path):
-    for f in files:
-        if os.path.isabs(f):
-            if os.path.exists(f):
-                return f
-        else:
-            searched = bb.utils.which(search_path, f)
-            if searched:
-                return searched
-
-WIC_CREATE_EXTRA_ARGS ?= ""
-
-IMAGE_CMD_wic () {
-	out="${IMGDEPLOYDIR}/${IMAGE_NAME}"
-	wks="${WKS_FULL_PATH}"
-	if [ -z "$wks" ]; then
-		bbfatal "No kickstart files from WKS_FILES were found: ${WKS_FILES}. Please set WKS_FILE or WKS_FILES appropriately."
-	fi
-
-	BUILDDIR="${TOPDIR}" wic create "$wks" --vars "${STAGING_DIR_TARGET}/imgdata/" -e "${IMAGE_BASENAME}" -o "$out/" ${WIC_CREATE_EXTRA_ARGS}
-	mv "$out/build/$(basename "${wks%.wks}")"*.direct "$out${IMAGE_NAME_SUFFIX}.wic"
-	rm -rf "$out/"
-}
-IMAGE_CMD_wic[vardepsexclude] = "WKS_FULL_PATH WKS_FILES"
-
-# Rebuild when the wks file or vars in WICVARS change
-USING_WIC = "${@bb.utils.contains_any('IMAGE_FSTYPES', 'wic ' + ' '.join('wic.%s' % c for c in '${CONVERSIONTYPES}'.split()), '1', '', d)}"
-WKS_FILE_CHECKSUM = "${@'${WKS_FULL_PATH}:%s' % os.path.exists('${WKS_FULL_PATH}') if '${USING_WIC}' else ''}"
-do_image_wic[file-checksums] += "${WKS_FILE_CHECKSUM}"
-
-python () {
-    if d.getVar('USING_WIC', True) and 'do_bootimg' in d:
-        bb.build.addtask('do_image_wic', '', 'do_bootimg', d)
-}
-
-python do_write_wks_template () {
-    """Write out expanded template contents to WKS_FULL_PATH."""
-    import re
-
-    template_body = d.getVar('_WKS_TEMPLATE', True)
-
-    # Remove any remnant variable references left behind by the expansion
-    # due to undefined variables
-    expand_var_regexp = re.compile(r"\${[^{}@\n\t :]+}")
-    while True:
-        new_body = re.sub(expand_var_regexp, '', template_body)
-        if new_body == template_body:
-            break
-        else:
-            template_body = new_body
-
-    wks_file = d.getVar('WKS_FULL_PATH', True)
-    with open(wks_file, 'w') as f:
-        f.write(template_body)
-}
-
-python () {
-    if d.getVar('USING_WIC', True):
-        wks_file_u = d.getVar('WKS_FULL_PATH', False)
-        wks_file = d.expand(wks_file_u)
-        base, ext = os.path.splitext(wks_file)
-        if ext == '.in' and os.path.exists(wks_file):
-            wks_out_file = os.path.join(d.getVar('WORKDIR', True), os.path.basename(base))
-            d.setVar('WKS_FULL_PATH', wks_out_file)
-            d.setVar('WKS_TEMPLATE_PATH', wks_file_u)
-            d.setVar('WKS_FILE_CHECKSUM', '${WKS_TEMPLATE_PATH}:True')
-
-            try:
-                with open(wks_file, 'r') as f:
-                    body = f.read()
-            except (IOError, OSError) as exc:
-                pass
-            else:
-                # Previously, I used expandWithRefs to get the dependency list
-                # and add it to WICVARS, but there's no point re-parsing the
-                # file in process_wks_template as well, so just put it in
-                # a variable and let the metadata deal with the deps.
-                d.setVar('_WKS_TEMPLATE', body)
-                bb.build.addtask('do_write_wks_template', 'do_image_wic', None, d)
-}
-
 EXTRA_IMAGECMD = ""
 
-inherit siteinfo
+inherit siteinfo kernel-arch
 JFFS2_ENDIANNESS ?= "${@base_conditional('SITEINFO_ENDIANNESS', 'le', '-l', '-b', d)}"
 JFFS2_ERASEBLOCK ?= "0x40000"
 EXTRA_IMAGECMD_jffs2 ?= "--pad ${JFFS2_ENDIANNESS} --eraseblock=${JFFS2_ERASEBLOCK} --no-cleanmarkers"
@@ -292,21 +232,20 @@ EXTRA_IMAGECMD_ext4 ?= "-i 4096"
 EXTRA_IMAGECMD_btrfs ?= "-n 4096"
 EXTRA_IMAGECMD_elf ?= ""
 
-IMAGE_DEPENDS = ""
-IMAGE_DEPENDS_jffs2 = "mtd-utils-native"
-IMAGE_DEPENDS_cramfs = "util-linux-native"
-IMAGE_DEPENDS_ext2 = "e2fsprogs-native"
-IMAGE_DEPENDS_ext3 = "e2fsprogs-native"
-IMAGE_DEPENDS_ext4 = "e2fsprogs-native"
-IMAGE_DEPENDS_btrfs = "btrfs-tools-native"
-IMAGE_DEPENDS_squashfs = "squashfs-tools-native"
-IMAGE_DEPENDS_squashfs-xz = "squashfs-tools-native"
-IMAGE_DEPENDS_squashfs-lzo = "squashfs-tools-native"
-IMAGE_DEPENDS_elf = "virtual/kernel mkelfimage-native"
-IMAGE_DEPENDS_ubi = "mtd-utils-native"
-IMAGE_DEPENDS_ubifs = "mtd-utils-native"
-IMAGE_DEPENDS_multiubi = "mtd-utils-native"
-IMAGE_DEPENDS_wic = "parted-native"
+do_image_jffs2[depends] += "mtd-utils-native:do_populate_sysroot"
+do_image_cramfs[depends] += "util-linux-native:do_populate_sysroot"
+do_image_ext2[depends] += "e2fsprogs-native:do_populate_sysroot"
+do_image_ext3[depends] += "e2fsprogs-native:do_populate_sysroot"
+do_image_ext4[depends] += "e2fsprogs-native:do_populate_sysroot"
+do_image_btrfs[depends] += "btrfs-tools-native:do_populate_sysroot"
+do_image_squashfs[depends] += "squashfs-tools-native:do_populate_sysroot"
+do_image_squashfs_xz[depends] += "squashfs-tools-native:do_populate_sysroot"
+do_image_squashfs_lzo[depends] += "squashfs-tools-native:do_populate_sysroot"
+do_image_squashfs_lz4[depends] += "squashfs-tools-native:do_populate_sysroot"
+do_image_elf[depends] += "virtual/kernel:do_populate_sysroot mkelfimage-native:do_populate_sysroot"
+do_image_ubi[depends] += "mtd-utils-native:do_populate_sysroot"
+do_image_ubifs[depends] += "mtd-utils-native:do_populate_sysroot"
+do_image_multiubi[depends] += "mtd-utils-native:do_populate_sysroot"
 
 # This variable is available to request which values are suitable for IMAGE_FSTYPES
 IMAGE_TYPES = " \
@@ -318,16 +257,13 @@ IMAGE_TYPES = " \
     btrfs \
     iso \
     hddimg \
-    squashfs squashfs-xz squashfs-lzo \
+    squashfs squashfs-xz squashfs-lzo squashfs-lz4 \
     ubi ubifs multiubi \
     tar tar.gz tar.bz2 tar.xz tar.lz4 \
     cpio cpio.gz cpio.xz cpio.lzma cpio.lz4 \
-    vmdk \
-    vdi \
-    qcow2 \
-    hdddirect \
     elf \
     wic wic.gz wic.bz2 wic.lzma \
+    container \
 "
 
 # Compression is a special case of conversion. The old variable
@@ -336,12 +272,14 @@ IMAGE_TYPES = " \
 # CONVERSION_CMD/DEPENDS.
 COMPRESSIONTYPES ?= ""
 
-CONVERSIONTYPES = "gz bz2 lzma xz lz4 zip sum md5sum sha1sum sha224sum sha256sum sha384sum sha512sum bmap ${COMPRESSIONTYPES}"
+CONVERSIONTYPES = "gz bz2 lzma xz lz4 lzo zip sum md5sum sha1sum sha224sum sha256sum sha384sum sha512sum bmap u-boot vmdk vdi qcow2 ${COMPRESSIONTYPES}"
 CONVERSION_CMD_lzma = "lzma -k -f -7 ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}"
-CONVERSION_CMD_gz = "gzip -f -9 -c ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.gz"
+CONVERSION_CMD_gz = "gzip -f -9 -n -c ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.gz"
 CONVERSION_CMD_bz2 = "pbzip2 -f -k ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}"
 CONVERSION_CMD_xz = "xz -f -k -c ${XZ_COMPRESSION_LEVEL} ${XZ_THREADS} --check=${XZ_INTEGRITY_CHECK} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.xz"
-CONVERSION_CMD_lz4 = "lz4c -9 -c ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.lz4"
+CONVERSION_CMD_lz4 = "lz4 -9 -z ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.lz4"
+CONVERSION_CMD_lz4_legacy = "lz4 -9 -z -l ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.lz4"
+CONVERSION_CMD_lzo = "lzop -9 ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}"
 CONVERSION_CMD_zip = "zip ${ZIP_COMPRESSION_LEVEL} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.zip ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}"
 CONVERSION_CMD_sum = "sumtool -i ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} -o ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.sum ${JFFS2_SUM_EXTRA_ARGS}"
 CONVERSION_CMD_md5sum = "md5sum ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.md5sum"
@@ -351,27 +289,32 @@ CONVERSION_CMD_sha256sum = "sha256sum ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} 
 CONVERSION_CMD_sha384sum = "sha384sum ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.sha384sum"
 CONVERSION_CMD_sha512sum = "sha512sum ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} > ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.sha512sum"
 CONVERSION_CMD_bmap = "bmaptool create ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} -o ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.bmap"
+CONVERSION_CMD_u-boot = "mkimage -A ${UBOOT_ARCH} -O linux -T ramdisk -C none -n ${IMAGE_NAME} -d ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.u-boot"
+CONVERSION_CMD_vmdk = "qemu-img convert -O vmdk ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.vmdk"
+CONVERSION_CMD_vdi = "qemu-img convert -O vdi ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.vdi"
+CONVERSION_CMD_qcow2 = "qemu-img convert -O qcow2 ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type} ${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.${type}.qcow2"
 CONVERSION_DEPENDS_lzma = "xz-native"
-CONVERSION_DEPENDS_gz = ""
+CONVERSION_DEPENDS_gz = "pigz-native"
 CONVERSION_DEPENDS_bz2 = "pbzip2-native"
 CONVERSION_DEPENDS_xz = "xz-native"
 CONVERSION_DEPENDS_lz4 = "lz4-native"
+CONVERSION_DEPENDS_lzo = "lzop-native"
 CONVERSION_DEPENDS_zip = "zip-native"
 CONVERSION_DEPENDS_sum = "mtd-utils-native"
 CONVERSION_DEPENDS_bmap = "bmap-tools-native"
+CONVERSION_DEPENDS_u-boot = "u-boot-mkimage-native"
+CONVERSION_DEPENDS_vmdk = "qemu-native"
+CONVERSION_DEPENDS_vdi = "qemu-native"
+CONVERSION_DEPENDS_qcow2 = "qemu-native"
 
 RUNNABLE_IMAGE_TYPES ?= "ext2 ext3 ext4"
 RUNNABLE_MACHINE_PATTERNS ?= "qemu"
 
 DEPLOYABLE_IMAGE_TYPES ?= "hddimg iso" 
 
-# Use IMAGE_EXTENSION_xxx to map image type 'xxx' with real image file extension name(s) for Hob
-IMAGE_EXTENSION_live = "hddimg iso"
-
 # The IMAGE_TYPES_MASKED variable will be used to mask out from the IMAGE_FSTYPES,
 # images that will not be built at do_rootfs time: vmdk, vdi, qcow2, hdddirect, hddimg, iso, etc.
 IMAGE_TYPES_MASKED ?= ""
 
-# The WICVARS variable is used to define list of bitbake variables used in wic code
-# variables from this list is written to <image>.env file
-WICVARS ?= "BBLAYERS IMGDEPLOYDIR DEPLOY_DIR_IMAGE HDDDIR IMAGE_BASENAME IMAGE_BOOT_FILES IMAGE_LINK_NAME IMAGE_ROOTFS INITRAMFS_FSTYPES INITRD ISODIR MACHINE_ARCH ROOTFS_SIZE STAGING_DATADIR STAGING_DIR_NATIVE STAGING_LIBDIR TARGET_SYS"
+# bmap requires python3 to be in the PATH
+EXTRANATIVEPATH += "${@'python3-native' if d.getVar('IMAGE_FSTYPES').find('.bmap') else ''}"

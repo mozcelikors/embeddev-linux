@@ -6,8 +6,6 @@ SECTION ?= "x11/gnome"
 GNOMEBN ?= "${BPN}"
 SRC_URI = "${GNOME_MIRROR}/${GNOMEBN}/${@gnome_verdir("${PV}")}/${GNOMEBN}-${PV}.tar.${GNOME_COMPRESS_TYPE};name=archive"
 
-DEPENDS += "gnome-common-native"
-
 FILES_${PN} += "${datadir}/application-registry  \
                 ${datadir}/mime-info \
                 ${datadir}/mime/packages \
@@ -16,6 +14,8 @@ FILES_${PN} += "${datadir}/application-registry  \
                 ${datadir}/polkit* \
                 ${datadir}/GConf \
                 ${datadir}/glib-2.0/schemas \
+                ${datadir}/appdata \
+                ${datadir}/icons \
 "
 
 FILES_${PN}-doc += "${datadir}/devhelp"
@@ -27,4 +27,3 @@ do_install_append() {
 	rm -rf ${D}${localstatedir}/scrollkeeper/*
 	rm -f ${D}${datadir}/applications/*.cache
 }
-

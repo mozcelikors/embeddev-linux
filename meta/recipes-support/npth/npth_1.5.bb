@@ -19,5 +19,3 @@ inherit autotools binconfig-disabled
 
 FILES_${PN} = "${libdir}/libnpth.so.*"
 FILES_${PN}-dev += "${bindir}/npth-config"
-
-BBCLASSEXTEND = "native"

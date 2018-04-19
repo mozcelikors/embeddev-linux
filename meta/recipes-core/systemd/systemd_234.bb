@@ -8,11 +8,7 @@ DEPENDS = "kmod intltool-native gperf-native acl readline libcap libcgroup util-
 
 SECTION = "base/shell"
 
-inherit useradd pkgconfig autotools perlnative update-rc.d update-alternatives qemu systemd ptest gettext bash-completion manpages distro_features_check
-
-# As this recipe builds udev, respect systemd being in DISTRO_FEATURES so
-# that we don't build both udev and systemd in world builds.
-REQUIRED_DISTRO_FEATURES = "systemd"
+inherit useradd pkgconfig autotools perlnative update-rc.d update-alternatives qemu systemd ptest gettext bash-completion manpages
 
 SRC_URI = "git://github.com/systemd/systemd.git;protocol=git \
            file://touchscreen.rules \
@@ -31,7 +27,6 @@ SRC_URI = "git://github.com/systemd/systemd.git;protocol=git \
            file://0017-remove-duplicate-include-uchar.h.patch \
            file://0018-check-for-uchar.h-in-configure.patch \
            file://0019-socket-util-don-t-fail-if-libc-doesn-t-support-IDN.patch \
-           file://0020-rules-watch-metadata-changes-in-ide-devices.patch \
            file://0001-add-fallback-parse_printf_format-implementation.patch \
            file://0002-src-basic-missing.h-check-for-missing-strndupa.patch \
            file://0003-don-t-fail-if-GLOB_BRACE-and-GLOB_ALTDIRFUNC-is-not-.patch \
@@ -48,10 +43,6 @@ SRC_URI = "git://github.com/systemd/systemd.git;protocol=git \
            file://0001-Use-uintmax_t-for-handling-rlim_t.patch \
            file://0001-core-evaluate-presets-after-generators-have-run-6526.patch \
            file://0001-main-skip-many-initialization-steps-when-running-in-.patch \
-           file://0001-meson-update-header-file-to-detect-memfd_create.patch \
-           file://0002-configure.ac-Check-if-memfd_create-is-already-define.patch \
-           file://0003-fileio-include-sys-mman.h.patch \
-           file://0001-Hide-__start_BUS_ERROR_MAP-and-__stop_BUS_ERROR_MAP.patch \
            "
 SRC_URI_append_qemuall = " file://0001-core-device.c-Change-the-default-device-timeout-to-2.patch"
 
@@ -190,6 +181,9 @@ EXTRA_OECONF = " \
 
 # per the systemd README, define VALGRIND=1 to run under valgrind
 CFLAGS .= "${@bb.utils.contains('PACKAGECONFIG', 'valgrind', ' -DVALGRIND=1', '', d)}"
+
+# disable problematic GCC 5.2 optimizations [YOCTO #8291]
+FULL_OPTIMIZATION_append_arm = " -fno-schedule-insns -fno-schedule-insns2"
 
 COMPILER_NM ?= "${HOST_PREFIX}gcc-nm"
 COMPILER_AR ?= "${HOST_PREFIX}gcc-ar"
@@ -637,4 +631,11 @@ pkg_postinst_udev-hwdb () {
 
 pkg_prerm_udev-hwdb () {
 	rm -f $D${sysconfdir}/udev/hwdb.bin
+}
+
+# As this recipe builds udev, respect systemd being in DISTRO_FEATURES so
+# that we don't build both udev and systemd in world builds.
+python () {
+    if not bb.utils.contains ('DISTRO_FEATURES', 'systemd', True, False, d):
+        raise bb.parse.SkipPackage("'systemd' not in DISTRO_FEATURES")
 }

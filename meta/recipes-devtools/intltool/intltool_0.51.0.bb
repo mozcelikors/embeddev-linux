@@ -16,12 +16,13 @@ UPSTREAM_CHECK_URI = "https://launchpad.net/intltool/trunk/"
 
 DEPENDS = "libxml-parser-perl-native"
 RDEPENDS_${PN} = "gettext-dev libxml-parser-perl"
-DEPENDS_class-native = "libxml-parser-perl-native"
+DEPENDS_class-native = "libxml-parser-perl-native gettext-native"
 
 inherit autotools pkgconfig perlnative
 
 export PERL = "${bindir}/env perl"
 PERL_class-native = "/usr/bin/env nativeperl"
+PERL_class-nativesdk = "/usr/bin/env perl"
 
 # gettext is assumed to exist on the host
 RDEPENDS_${PN}_class-native = "libxml-parser-perl-native"
@@ -33,4 +34,4 @@ FILES_${PN} += "${datadir}/aclocal"
 
 INSANE_SKIP_${PN} += "dev-deps"
 
-BBCLASSEXTEND = "native"
+BBCLASSEXTEND = "native nativesdk"

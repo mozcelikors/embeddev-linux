@@ -5,11 +5,14 @@ EXTRADEPENDS = ""
 DEPENDS = "virtual/${TARGET_PREFIX}binutils virtual/${TARGET_PREFIX}libc-for-gcc ${EXTRADEPENDS} ${NATIVEDEPS}"
 PROVIDES = "virtual/${TARGET_PREFIX}gcc virtual/${TARGET_PREFIX}g++"
 python () {
-    if d.getVar("TARGET_OS", True).startswith("linux"):
+    if d.getVar("TARGET_OS").startswith("linux"):
         d.setVar("EXTRADEPENDS", "linux-libc-headers")
 }
 
 PN = "gcc-cross-${TARGET_ARCH}"
+
+# Ignore how TARGET_ARCH is computed.
+TARGET_ARCH[vardepvalue] = "${TARGET_ARCH}"
 
 require gcc-configure-common.inc
 
@@ -54,6 +57,7 @@ do_compile () {
 	export LDFLAGS_FOR_TARGET="${TARGET_LDFLAGS}"
 
 	oe_runmake all-host configure-target-libgcc
+	(cd ${B}/${TARGET_SYS}/libgcc; oe_runmake enable-execute-stack.c unwind.h md-unwind-support.h sfp-machine.h gthr-default.h)
 	# now generate script to drive testing
 	echo "#!/usr/bin/env sh" >${B}/${TARGET_PREFIX}testgcc
 	set >> ${B}/${TARGET_PREFIX}testgcc
@@ -152,22 +156,24 @@ INHIBIT_PACKAGE_STRIP = "1"
 BINRELPATH = "${@os.path.relpath(d.expand("${STAGING_DIR_NATIVE}${prefix_native}/bin/${TARGET_SYS}"), d.expand("${libexecdir}/gcc/${TARGET_SYS}/${BINV}"))}"
 
 do_install () {
-	( cd ${B}/${TARGET_SYS}/libgcc; oe_runmake 'DESTDIR=${D}' install-unwind_h )
+	( cd ${B}/${TARGET_SYS}/libgcc; oe_runmake 'DESTDIR=${D}' install-unwind_h-forbuild install-unwind_h )
 	oe_runmake 'DESTDIR=${D}' install-host
 
 	install -d ${D}${target_base_libdir}
 	install -d ${D}${target_libdir}
-    
+
 	# Link gfortran to g77 to satisfy not-so-smart configure or hard coded g77
 	# gfortran is fully backwards compatible. This is a safe and practical solution. 
-	ln -sf ${STAGING_DIR_NATIVE}${prefix_native}/bin/${TARGET_PREFIX}gfortran ${STAGING_DIR_NATIVE}${prefix_native}/bin/${TARGET_PREFIX}g77 || true
+	if [ -n "${@d.getVar('FORTRAN')}" ]; then
+		ln -sf ${STAGING_DIR_NATIVE}${prefix_native}/bin/${TARGET_PREFIX}gfortran ${STAGING_DIR_NATIVE}${prefix_native}/bin/${TARGET_PREFIX}g77 || true
+		fortsymlinks="g77 gfortran"
+	fi
 
-	
 	# Insert symlinks into libexec so when tools without a prefix are searched for, the correct ones are
 	# found. These need to be relative paths so they work in different locations.
 	dest=${D}${libexecdir}/gcc/${TARGET_SYS}/${BINV}/
 	install -d $dest
-	for t in ar as ld nm objcopy objdump ranlib strip g77 gcc cpp gfortran; do
+	for t in ar as ld ld.bfd ld.gold nm objcopy objdump ranlib strip gcc cpp $fortsymlinks; do
 		ln -sf ${BINRELPATH}/${TARGET_PREFIX}$t $dest$t
 		ln -sf ${BINRELPATH}/${TARGET_PREFIX}$t ${dest}${TARGET_PREFIX}$t
 	done
@@ -185,21 +191,28 @@ do_install () {
 	# We use libiberty from binutils
 	find ${D}${exec_prefix}/lib -name libiberty.a | xargs rm -f
 	find ${D}${exec_prefix}/lib -name libiberty.h | xargs rm -f
-
-	# gcc-runtime installs libgcc into a special location in staging since it breaks doing a standalone build
-	case ${PN} in
-		*gcc-cross-${TARGET_ARCH}|*gcc-crosssdk-${SDK_SYS})
-			dest=${D}/${includedir}/gcc-build-internal-${TARGET_SYS}
-			hardlinkdir . $dest
-		;;
-	esac
 }
-# This is reflected in the recipe name and target gcc shouldn't depend 
-# on SDK settings either
-do_install[vardepsexclude] += "SDK_SYS"
 
 do_package[noexec] = "1"
 do_packagedata[noexec] = "1"
 do_package_write_ipk[noexec] = "1"
 do_package_write_rpm[noexec] = "1"
 do_package_write_deb[noexec] = "1"
+
+BUILDDIRSTASH = "${WORKDIR}/stashed-builddir"
+do_gcc_stash_builddir[dirs] = "${B}"
+do_gcc_stash_builddir[cleandirs] = "${BUILDDIRSTASH}"
+do_gcc_stash_builddir () {
+	dest=${BUILDDIRSTASH}
+	hardlinkdir . $dest
+}
+addtask do_gcc_stash_builddir after do_compile before do_install
+SSTATETASKS += "do_gcc_stash_builddir"
+do_gcc_stash_builddir[sstate-inputdirs] = "${BUILDDIRSTASH}"
+do_gcc_stash_builddir[sstate-outputdirs] = "${COMPONENTS_DIR}/${BUILD_ARCH}/gcc-stashed-builddir${COMPILERINITIAL}-${TARGET_SYS}"
+do_gcc_stash_builddir[sstate-fixmedir] = "${COMPONENTS_DIR}/${BUILD_ARCH}/gcc-stashed-builddir${COMPILERINITIAL}-${TARGET_SYS}"
+
+python do_gcc_stash_builddir_setscene () {
+    sstate_setscene(d)
+}
+addtask do_gcc_stash_builddir_setscene

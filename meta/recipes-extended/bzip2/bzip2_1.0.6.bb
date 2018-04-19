@@ -25,7 +25,7 @@ PACKAGES =+ "libbz2"
 
 CFLAGS_append = " -fPIC -fpic -Winline -fno-strength-reduce -D_FILE_OFFSET_BITS=64"
 
-inherit autotools update-alternatives ptest
+inherit autotools update-alternatives ptest relative_symlinks
 
 ALTERNATIVE_PRIORITY = "100"
 ALTERNATIVE_${PN} = "bunzip2 bzcat"
@@ -34,7 +34,6 @@ ALTERNATIVE_${PN} = "bunzip2 bzcat"
 EXTRA_OECONF_append_class-native = " --bindir=${STAGING_BINDIR_NATIVE}/${PN}"
 
 do_install_ptest () {
-	cp -f ${B}/Makefile ${D}${PTEST_PATH}/Makefile
 	sed -i -e "s|^Makefile:|_Makefile:|" ${D}${PTEST_PATH}/Makefile
 }
 

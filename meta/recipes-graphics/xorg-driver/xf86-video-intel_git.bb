@@ -9,7 +9,7 @@ Infrastructure (DRI)."
 
 LIC_FILES_CHKSUM = "file://COPYING;md5=8730ad58d11c7bbad9a7066d69f7808e"
 
-SRCREV = "8f33f80100096f7790c7b819ce37a3ed8ce8b5fa"
+SRCREV = "e4fe79cf0d9a05ee3f3a027148ef0aeb2b1b34e1"
 PV = "2.99.917+git${SRCPV}"
 S = "${WORKDIR}/git"
 
@@ -20,10 +20,11 @@ SRC_URI = "git://anongit.freedesktop.org/xorg/driver/xf86-video-intel \
 
 SRC_URI[md5sum] = "fa196a66e52c0c624fe5d350af7a5e7b"
 SRC_URI[sha256sum] = "00b781eea055582820a123c47b62411bdf6aabf4f03dc0568faec55faf9667c9"
+UPSTREAM_CHECK_GITTAGREGEX = "(?P<pver>\d+(\.\d+)+)"
 
 DEPENDS += "virtual/libx11 drm libpciaccess pixman"
 
-PACKAGECONFIG ??= "xvmc sna udev ${@bb.utils.contains('DISTRO_FEATURES', 'opengl', 'dri dri1 dri2', '', d)}"
+PACKAGECONFIG ??= "xvmc uxa udev ${@bb.utils.contains('DISTRO_FEATURES', 'opengl', 'dri dri1 dri2', '', d)}"
 
 PACKAGECONFIG[dri] = "--enable-dri,--disable-dri"
 PACKAGECONFIG[dri1] = "--enable-dri1,--disable-dri1,xf86driproto"

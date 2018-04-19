@@ -12,7 +12,11 @@ PV = "0.1+git${SRCPV}"
 PR = "r2"
 
 SRC_URI = "git://git.yoctoproject.org/dbus-wait"
+UPSTREAM_CHECK_COMMITS = "1"
+RECIPE_NO_UPDATE_REASON = "This recipe is used to test devtool upgrade feature"
 
 S = "${WORKDIR}/git"
+
+EXCLUDE_FROM_WORLD = "1"
 
 inherit autotools pkgconfig

@@ -1,13 +1,13 @@
 SUMMARY = "An image containing the build system itself"
-DESCRIPTION = "An image containing the build system that you can boot and run using either VMware Player or VMware Workstation."
+DESCRIPTION = "An image containing the build system that you can boot and run using either VirtualBox, VMware Player or VMware Workstation."
 HOMEPAGE = "http://www.yoctoproject.org/documentation/build-appliance"
 
 LICENSE = "MIT"
-LIC_FILES_CHKSUM = "file://${COREBASE}/LICENSE;md5=4d92cd373abda3937c2bc47fbc49d690 \
-                    file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
+LIC_FILES_CHKSUM = "file://${COREBASE}/meta/COPYING.MIT;md5=3da9cfbcb788c80a0384361b4de20420"
 
 IMAGE_INSTALL = "packagegroup-core-boot packagegroup-core-ssh-openssh packagegroup-self-hosted \
-                 kernel-dev kernel-devsrc connman connman-plugin-ethernet dhcp-client"
+                 kernel-dev kernel-devsrc connman connman-plugin-ethernet dhcp-client \
+                 tzdata python3-pip perl-misc"
 
 IMAGE_FEATURES += "x11-base package-management splash"
 
@@ -17,16 +17,17 @@ IMAGE_ROOTFS_EXTRA_SPACE = "41943040"
 # Do a quiet boot with limited console messages
 APPEND += "rootfstype=ext4 quiet"
 
-DEPENDS = "zip-native"
-IMAGE_FSTYPES = "vmdk"
+DEPENDS = "zip-native python3-pip-native"
+IMAGE_FSTYPES = "wic.vmdk"
 
-inherit core-image module-base
+inherit core-image module-base setuptools3
 
-SRCREV ?= "a3765887d3efa4c464ef7a00450f218ae2b15eb2"
-SRC_URI = "git://git.yoctoproject.org/poky;branch=morty \
+SRCREV ?= "a9588646fcec17e53199e1ea7e7b8dccf140817e"
+SRC_URI = "git://git.yoctoproject.org/poky;branch=rocko \
            file://Yocto_Build_Appliance.vmx \
            file://Yocto_Build_Appliance.vmxf \
            file://README_VirtualBox_Guest_Additions.txt \
+           file://README_VirtualBox_Toaster.txt \
           "
 BA_INCLUDE_SOURCES ??= "0"
 
@@ -54,7 +55,11 @@ fakeroot do_populate_poky_src () {
 	# Place the README_VirtualBox_Guest_Additions file in builders home folder.
 	cp ${WORKDIR}/README_VirtualBox_Guest_Additions.txt ${IMAGE_ROOTFS}/home/builder/
 
+	# Place the README_VirtualBox_Toaster file in builders home folder.
+	cp ${WORKDIR}/README_VirtualBox_Toaster.txt ${IMAGE_ROOTFS}/home/builder/
+
 	# Create a symlink, needed for out-of-tree kernel modules build
+	rm -f  ${IMAGE_ROOTFS}/lib/modules/${KERNEL_VERSION}/build
 	lnr ${IMAGE_ROOTFS}${KERNEL_SRC_PATH} ${IMAGE_ROOTFS}/lib/modules/${KERNEL_VERSION}/build
 
 	echo "INHERIT += \"rm_work\"" >> ${IMAGE_ROOTFS}/home/builder/poky/build/conf/auto.conf
@@ -82,12 +87,26 @@ fakeroot do_populate_poky_src () {
 	echo "builder ALL=(ALL) NOPASSWD: ALL" >> ${IMAGE_ROOTFS}/etc/sudoers
 
 	# Load tap/tun at startup
+	rm -f ${IMAGE_ROOTFS}/sbin/iptables
 	lnr ${IMAGE_ROOTFS}/usr/sbin/iptables ${IMAGE_ROOTFS}/sbin/iptables
 	echo "tun" >> ${IMAGE_ROOTFS}/etc/modules
 
 	# Use Clearlooks GTK+ theme
 	mkdir -p ${IMAGE_ROOTFS}/etc/gtk-2.0
 	echo 'gtk-theme-name = "Clearlooks"' > ${IMAGE_ROOTFS}/etc/gtk-2.0/gtkrc
+
+	# Install modules needed for toaster
+	export STAGING_LIBDIR=${STAGING_LIBDIR_NATIVE}
+	export STAGING_INCDIR=${STAGING_INCDIR_NATIVE}
+	export HOME=${IMAGE_ROOTFS}/home/builder
+	mkdir -p ${IMAGE_ROOTFS}/home/builder/.cache/pip
+	pip3_install_params="--user -I -U -v -r ${IMAGE_ROOTFS}/home/builder/poky/bitbake/toaster-requirements.txt"
+	if [ -n "${http_proxy}" ]; then
+	   pip3_install_params="${pip3_install_params} --proxy ${http_proxy}"
+	fi
+	pip3 install ${pip3_install_params}
+	chown -R builder.builder ${IMAGE_ROOTFS}/home/builder/.local
+	chown -R builder.builder ${IMAGE_ROOTFS}/home/builder/.cache
 }
 
 IMAGE_PREPROCESS_COMMAND += "do_populate_poky_src; "
@@ -104,7 +123,7 @@ create_bundle_files () {
 	cd ${WORKDIR}
 	mkdir -p Yocto_Build_Appliance
 	cp *.vmx* Yocto_Build_Appliance
-	ln -sf ${IMGDEPLOYDIR}/${IMAGE_NAME}.vmdk Yocto_Build_Appliance/Yocto_Build_Appliance.vmdk
+	ln -sf ${IMGDEPLOYDIR}/${IMAGE_NAME}${IMAGE_NAME_SUFFIX}.wic.vmdk Yocto_Build_Appliance/Yocto_Build_Appliance.vmdk
 	zip -r ${IMGDEPLOYDIR}/Yocto_Build_Appliance-${DATETIME}.zip Yocto_Build_Appliance
 	ln -sf Yocto_Build_Appliance-${DATETIME}.zip ${IMGDEPLOYDIR}/Yocto_Build_Appliance.zip
 }
@@ -114,4 +133,4 @@ python do_bundle_files() {
     bb.build.exec_func('create_bundle_files', d)
 }
 
-addtask bundle_files after do_vmimg before do_image_complete
+addtask bundle_files after do_image_wic before do_image_complete

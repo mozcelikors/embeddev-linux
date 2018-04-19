@@ -11,7 +11,7 @@ LIC_FILES_CHKSUM = "file://ping.c;beginline=1;endline=35;md5=f9ceb201733e9a6cf8f
                     file://arping.c;beginline=1;endline=11;md5=fe84301b5c2655c950f8b92a057fafa6 \
                     file://tftpd.c;beginline=1;endline=32;md5=28834bf8a91a5b8a92755dbee709ef96 "
 
-DEPENDS = "gnutls docbook-utils-native sgmlspl-native libcap libgcrypt"
+DEPENDS = "gnutls libcap libgcrypt"
 
 
 SRC_URI = "http://www.skbuff.net/iputils/${BPN}-${PV}.tar.bz2 \
@@ -20,6 +20,7 @@ SRC_URI = "http://www.skbuff.net/iputils/${BPN}-${PV}.tar.bz2 \
            file://nsgmls-path-fix.patch \
            file://0001-Fix-header-inclusion-for-musl.patch \
            file://0001-Intialize-struct-elements-by-name.patch \
+           file://arping-fix-arping-hang-if-SIGALRM-is-blocked.patch \
           "
 
 SRC_URI[md5sum] = "8aaa7395f27dff9f57ae016d4bc753ce"
@@ -30,11 +31,11 @@ UPSTREAM_CHECK_REGEX = "iputils-(?P<pver>s\d+).tar"
 EXTRA_OEMAKE = "-e MAKEFLAGS="
 
 do_compile () {
-	oe_runmake 'CC=${CC} -D_GNU_SOURCE' VPATH="${STAGING_LIBDIR}:${STAGING_DIR_HOST}/${base_libdir}" all man
+	oe_runmake 'CC=${CC} -D_GNU_SOURCE' VPATH="${STAGING_LIBDIR}:${STAGING_DIR_HOST}/${base_libdir}" all
 }
 
 do_install () {
-	install -m 0755 -d ${D}${base_bindir} ${D}${mandir}/man8
+	install -m 0755 -d ${D}${base_bindir}
 	# SUID root programs
 	install -m 4555 ping ${D}${base_bindir}/ping
 	install -m 4555 ping6 ${D}${base_bindir}/ping6
@@ -43,10 +44,6 @@ do_install () {
 	# Other programgs
 	for i in arping tracepath tracepath6; do
 	  install -m 0755 $i ${D}${base_bindir}/
-	done
-	# Manual pages for things we build packages for
-	for i in tracepath.8 traceroute6.8 ping.8 arping.8; do
-	  install -m 0644 doc/$i ${D}${mandir}/man8/ || true
 	done
 }
 
@@ -73,4 +70,3 @@ FILES_${PN}-tracepath = "${base_bindir}/tracepath"
 FILES_${PN}-tracepath6 = "${base_bindir}/tracepath6"
 FILES_${PN}-traceroute6	= "${base_bindir}/traceroute6"
 FILES_${PN}-clockdiff = "${base_bindir}/clockdiff"
-FILES_${PN}-doc	= "${mandir}/man8"

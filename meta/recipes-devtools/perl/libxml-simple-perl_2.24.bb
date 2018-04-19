@@ -19,6 +19,6 @@ S = "${WORKDIR}/XML-Simple-${PV}"
 
 EXTRA_PERLFLAGS = "-I ${PERLHOSTLIB}"
 
-inherit cpan ptest-perl
+inherit cpan
 
 BBCLASSEXTEND = "native"

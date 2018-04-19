@@ -184,6 +184,8 @@ PV = "0.0+git${SRCPV}"
 
 SRC_URI = "git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
 
+UPSTREAM_VERSION_UNKNOWN = "1"
+
 S = "${WORKDIR}/git"
 
 inherit allarch
@@ -216,7 +218,6 @@ do_install() {
 
 	# fixup wl12xx location, after 2.6.37 the kernel searches a different location for it
 	( cd ${D}${nonarch_base_libdir}/firmware ; ln -sf ti-connectivity/* . )
-
 }
 
 

@@ -1,4 +1,5 @@
 SUMMARY = "Delayed job execution and batch processing"
+HOMEPAGE = "http://blog.calhariz.com/"
 DESCRIPTION = "At allows for commands to be run at a particular time.  Batch will execute commands when \
 the system load levels drop to a particular level."
 SECTION = "base"
@@ -65,7 +66,7 @@ do_install () {
 	install -m 0644 ${WORKDIR}/atd.service ${D}${systemd_unitdir}/system
 	sed -i -e 's,@SBINDIR@,${sbindir},g' ${D}${systemd_unitdir}/system/atd.service
 
-	if [ "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam', '', d)}" = "pam" ]; then
+	if [ "${@bb.utils.filter('DISTRO_FEATURES', 'pam', d)}" ]; then
 		install -D -m 0644 ${WORKDIR}/${BP}/pam.conf ${D}${sysconfdir}/pam.d/atd
 	fi
 }

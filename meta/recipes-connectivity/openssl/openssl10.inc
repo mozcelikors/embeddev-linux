@@ -25,7 +25,7 @@ TERMIO_libc-musl = "-DTERMIOS"
 TERMIO ?= "-DTERMIO"
 # Avoid binaries being marked as requiring an executable stack since it 
 # doesn't(which causes and this causes issues with SELinux
-CFLAG = "${@oe.utils.conditional('SITEINFO_ENDIANNESS', 'le', '-DL_ENDIAN', '-DB_ENDIAN', d)} \
+CFLAG = "${@base_conditional('SITEINFO_ENDIANNESS', 'le', '-DL_ENDIAN', '-DB_ENDIAN', d)} \
 	 ${TERMIO} ${CFLAGS} -Wall -Wa,--noexecstack"
 
 export DIRS = "crypto ssl apps"
@@ -135,12 +135,6 @@ do_configure () {
 	linux-powerpc64)
 		target=linux-ppc64
 		;;
-	linux-riscv64)
-		target=linux-generic64
-		;;
-	linux-riscv32)
-		target=linux-generic32
-		;;
 	linux-supersparc)
 		target=linux-sparcv8
 		;;
@@ -162,6 +156,9 @@ do_configure () {
 
 do_compile_prepend_class-target () {
     sed -i 's/\((OPENSSL=\)".*"/\1"openssl"/' Makefile
+    oe_runmake depend
+	cc_sanitized=`echo "${CC} ${CFLAG}" | sed -e 's,--sysroot=${STAGING_DIR_TARGET},,g' -e 's|${DEBUG_PREFIX_MAP}||g'`
+	oe_runmake CC_INFO="${cc_sanitized}"
 }
 
 do_compile () {

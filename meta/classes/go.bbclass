@@ -1,6 +1,23 @@
 inherit goarch ptest
 
-GO_PARALLEL_BUILD ?= "${@oe.utils.parallel_make_argument(d, '-p %d')}"
+def get_go_parallel_make(d):
+    pm = (d.getVar('PARALLEL_MAKE') or '').split()
+    # look for '-j' and throw other options (e.g. '-l') away
+    # because they might have a different meaning in golang
+    while pm:
+        opt = pm.pop(0)
+        if opt == '-j':
+            v = pm.pop(0)
+        elif opt.startswith('-j'):
+            v = opt[2:].strip()
+        else:
+            continue
+
+        return '-p %d' % int(v)
+
+    return ""
+
+GO_PARALLEL_BUILD ?= "${@get_go_parallel_make(d)}"
 
 GOROOT_class-native = "${STAGING_LIBDIR_NATIVE}/go"
 GOROOT_class-nativesdk = "${STAGING_DIR_TARGET}${libdir}/go"
@@ -24,15 +41,17 @@ GO_LINKMODE ?= ""
 GO_LINKMODE_class-nativesdk = "--linkmode=external"
 GO_LDFLAGS ?= '-ldflags="${GO_RPATH} ${GO_LINKMODE} -extldflags '${GO_EXTLDFLAGS}'"'
 export GOBUILDFLAGS ?= "-v ${GO_LDFLAGS}"
-export GOPATH_OMIT_IN_ACTIONID ?= "1"
 export GOPTESTBUILDFLAGS ?= "${GOBUILDFLAGS} -c"
-export GOPTESTFLAGS ?= ""
+export GOPTESTFLAGS ?= "-test.v"
 GOBUILDFLAGS_prepend_task-compile = "${GO_PARALLEL_BUILD} "
 
 export GO = "${HOST_PREFIX}go"
 GOTOOLDIR = "${STAGING_LIBDIR_NATIVE}/${TARGET_SYS}/go/pkg/tool/${BUILD_GOTUPLE}"
 GOTOOLDIR_class-native = "${STAGING_LIBDIR_NATIVE}/go/pkg/tool/${BUILD_GOTUPLE}"
 export GOTOOLDIR
+
+SECURITY_CFLAGS = "${SECURITY_NOPIE_CFLAGS}"
+SECURITY_LDFLAGS = ""
 
 export CGO_ENABLED ?= "1"
 export CGO_CFLAGS ?= "${CFLAGS}"
@@ -45,9 +64,8 @@ GO_INSTALL_FILTEROUT ?= "${GO_IMPORT}/vendor/"
 
 B = "${WORKDIR}/build"
 export GOPATH = "${B}"
-export GOCACHE = "off"
-export GOTMPDIR ?= "${WORKDIR}/go-tmp"
-GOTMPDIR[vardepvalue] = ""
+GO_TMPDIR ?= "${WORKDIR}/go-tmp"
+GO_TMPDIR[vardepvalue] = ""
 
 python go_do_unpack() {
     src_uri = (d.getVar('SRC_URI') or "").split()
@@ -73,7 +91,7 @@ go_list_packages() {
 }
 
 go_list_package_tests() {
-	${GO} list -f '{{.ImportPath}} {{.TestGoFiles}}' ${GOBUILDFLAGS} ${GO_INSTALL} | \
+    ${GO} list -f '{{.ImportPath}} {{.TestGoFiles}}' ${GOBUILDFLAGS} ${GO_INSTALL} | \
 		grep -v '\[\]$' | \
 		egrep -v '${GO_INSTALL_FILTEROUT}' | \
 		awk '{ print $1 }'
@@ -82,37 +100,32 @@ go_list_package_tests() {
 go_do_configure() {
 	ln -snf ${S}/src ${B}/
 }
-do_configure[dirs] =+ "${GOTMPDIR}"
 
 go_do_compile() {
-	export TMPDIR="${GOTMPDIR}"
+	export TMPDIR="${GO_TMPDIR}"
+	${GO} env
 	if [ -n "${GO_INSTALL}" ]; then
-		if [ -n "${GO_LINKSHARED}" ]; then
-			${GO} install ${GOBUILDFLAGS} `go_list_packages`
-			rm -rf ${B}/bin
-		fi
 		${GO} install ${GO_LINKSHARED} ${GOBUILDFLAGS} `go_list_packages`
 	fi
 }
-do_compile[dirs] =+ "${GOTMPDIR}"
+do_compile[dirs] =+ "${GO_TMPDIR}"
 do_compile[cleandirs] = "${B}/bin ${B}/pkg"
 
-do_compile_ptest_base() {
-	export TMPDIR="${GOTMPDIR}"
-	rm -f ${B}/.go_compiled_tests.list
+do_compile_ptest() {
+    export TMPDIR="${GO_TMPDIR}"
+    rm -f ${B}/.go_compiled_tests.list
 	go_list_package_tests | while read pkg; do
 		cd ${B}/src/$pkg
 		${GO} test ${GOPTESTBUILDFLAGS} $pkg
 		find . -mindepth 1 -maxdepth 1 -type f -name '*.test' -exec echo $pkg/{} \; | \
 			sed -e's,/\./,/,'>> ${B}/.go_compiled_tests.list
 	done
-	do_compile_ptest
 }
-do_compile_ptest_base[dirs] =+ "${GOTMPDIR}"
+do_compile_ptest_base[dirs] =+ "${GO_TMPDIR}"
 
 go_do_install() {
 	install -d ${D}${libdir}/go/src/${GO_IMPORT}
-	tar -C ${S}/src/${GO_IMPORT} -cf - --exclude-vcs --exclude '*.test' --exclude 'testdata' . | \
+	tar -C ${S}/src/${GO_IMPORT} -cf - --exclude-vcs --exclude '*.test' . | \
 		tar -C ${D}${libdir}/go/src/${GO_IMPORT} --no-same-owner -xf -
 	tar -C ${B} -cf - pkg | tar -C ${D}${libdir}/go --no-same-owner -xf -
 
@@ -122,54 +135,42 @@ go_do_install() {
 	fi
 }
 
-go_make_ptest_wrapper() {
-	cat >${D}${PTEST_PATH}/run-ptest <<EOF
-#!/bin/sh
-RC=0
-run_test() (
-    cd "\$1"
-    ((((./\$2 ${GOPTESTFLAGS}; echo \$? >&3) | sed -r -e"s,^(PASS|SKIP|FAIL)\$,\\1: \$1/\$2," >&4) 3>&1) | (read rc; exit \$rc)) 4>&1
-    exit \$?)
-EOF
-
-}
-
-go_stage_testdata() {
-	oldwd="$PWD"
-	cd ${S}/src
-	find ${GO_IMPORT} -depth -type d -name testdata | while read d; do
-		if echo "$d" | grep -q '/vendor/'; then
-			continue
-		fi
-		parent=`dirname $d`
-		install -d ${D}${PTEST_PATH}/$parent
-		cp --preserve=mode,timestamps -R $d ${D}${PTEST_PATH}/$parent/
-	done
-	cd "$oldwd"
-}
-
 do_install_ptest_base() {
-	test -f "${B}/.go_compiled_tests.list" || exit 0
-	install -d ${D}${PTEST_PATH}
-	go_stage_testdata
-	go_make_ptest_wrapper
-	havetests=""
-	while read test; do
-		testdir=`dirname $test`
-		testprog=`basename $test`
-		install -d ${D}${PTEST_PATH}/$testdir
-		install -m 0755 ${B}/src/$test ${D}${PTEST_PATH}/$test
-	echo "run_test $testdir $testprog || RC=1" >> ${D}${PTEST_PATH}/run-ptest
-		havetests="yes"
-	done < ${B}/.go_compiled_tests.list
-	if [ -n "$havetests" ]; then
-		echo "exit \$RC" >> ${D}${PTEST_PATH}/run-ptest
-		chmod +x ${D}${PTEST_PATH}/run-ptest
-	else
-		rm -rf ${D}${PTEST_PATH}
-	fi
-	do_install_ptest
-	chown -R root:root ${D}${PTEST_PATH}
+set -x
+    test -f "${B}/.go_compiled_tests.list" || exit 0
+    tests=""
+    while read test; do
+        tests="$tests${tests:+ }${test%.test}"
+        testdir=`dirname $test`
+        install -d ${D}${PTEST_PATH}/$testdir
+        install -m 0755 ${B}/src/$test ${D}${PTEST_PATH}/$test
+        if [ -d "${B}/src/$testdir/testdata" ]; then
+            cp --preserve=mode,timestamps -R "${B}/src/$testdir/testdata" ${D}${PTEST_PATH}/$testdir
+        fi
+    done < ${B}/.go_compiled_tests.list
+    if [ -n "$tests" ]; then
+        install -d ${D}${PTEST_PATH}
+        cat >${D}${PTEST_PATH}/run-ptest <<EOF
+#!/bin/sh
+ANYFAILED=0
+for t in $tests; do
+    testdir=\`dirname \$t.test\`
+    if ( cd "${PTEST_PATH}/\$testdir"; "${PTEST_PATH}/\$t.test" ${GOPTESTFLAGS} | tee /dev/fd/9 | grep -q "^FAIL" ) 9>&1; then
+        ANYFAILED=1
+    fi
+done
+if [ \$ANYFAILED -ne 0 ]; then
+    echo "FAIL: ${PN}"
+    exit 1
+fi
+echo "PASS: ${PN}"
+exit 0
+EOF
+        chmod +x ${D}${PTEST_PATH}/run-ptest
+    else
+        rm -rf ${D}${PTEST_PATH}
+    fi
+set +x
 }
 
 EXPORT_FUNCTIONS do_unpack do_configure do_compile do_install

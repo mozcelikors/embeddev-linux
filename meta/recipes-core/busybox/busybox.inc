@@ -18,7 +18,6 @@ BUSYBOX_SPLIT_SUID ?= "1"
 export EXTRA_CFLAGS = "${CFLAGS}"
 export EXTRA_LDFLAGS = "${LDFLAGS}"
 
-# We don't want '-e MAKEFLAGS=' in EXTRA_OEMAKE
 EXTRA_OEMAKE = "CC='${CC}' LD='${CCLD}' V=1 ARCH=${TARGET_ARCH} CROSS_COMPILE=${TARGET_PREFIX} SKIP_STRIP=y HOSTCC='${BUILD_CC}' HOSTCPP='${BUILD_CPP}'"
 
 PACKAGES =+ "${PN}-httpd ${PN}-udhcpd ${PN}-udhcpc ${PN}-syslog ${PN}-mdev ${PN}-hwclock"
@@ -40,12 +39,16 @@ INITSCRIPT_NAME_${PN}-syslog = "syslog"
 INITSCRIPT_NAME_${PN}-udhcpd = "busybox-udhcpd"
 
 SYSTEMD_PACKAGES = "${PN}-syslog"
-SYSTEMD_SERVICE_${PN}-syslog = "busybox-syslog.service"
+SYSTEMD_SERVICE_${PN}-syslog = "${@bb.utils.contains('SRC_URI', 'file://syslog.cfg', 'busybox-syslog.service', '', d)}"
 
-CONFFILES_${PN}-syslog = "${sysconfdir}/syslog-startup.conf.${BPN}"
+CONFFILES_${PN}-syslog = "${sysconfdir}/syslog-startup.conf"
+RCONFLICTS_${PN}-syslog = "rsyslog sysklogd syslog-ng"
+
 CONFFILES_${PN}-mdev = "${sysconfdir}/mdev.conf"
 
 RRECOMMENDS_${PN} = "${PN}-syslog ${PN}-udhcpc"
+
+RDEPENDS_${PN} = "${@["", "busybox-inittab"][(d.getVar('VIRTUAL-RUNTIME_init_manager') == 'busybox')]}"
 
 inherit cml1 systemd update-rc.d ptest
 
@@ -63,8 +66,8 @@ def busybox_cfg(feature, tokens, cnf, rem):
 def features_to_busybox_settings(d):
 	cnf, rem = ([], [])
 	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'ipv6', True, False, d), 'CONFIG_FEATURE_IPV6', cnf, rem)
-	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'largefile', True, False, d), 'CONFIG_LFS', cnf, rem)
-	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'largefile', True, False, d), 'CONFIG_FDISK_SUPPORT_LARGE_DISKS', cnf, rem)
+	busybox_cfg(True, 'CONFIG_LFS', cnf, rem)
+	busybox_cfg(True, 'CONFIG_FDISK_SUPPORT_LARGE_DISKS', cnf, rem)
 	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'nls', True, False, d), 'CONFIG_LOCALE_SUPPORT', cnf, rem)
 	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'ipv4', True, False, d), 'CONFIG_FEATURE_IFUPDOWN_IPV4', cnf, rem)
 	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'ipv6', True, False, d), 'CONFIG_FEATURE_IFUPDOWN_IPV6', cnf, rem)
@@ -72,7 +75,7 @@ def features_to_busybox_settings(d):
 	busybox_cfg(bb.utils.contains('DISTRO_FEATURES', 'bluetooth', True, False, d), 'CONFIG_RFKILL', cnf, rem)
 	return "\n".join(cnf), "\n".join(rem)
 
-# X, Y = ${@features_to_uclibc_settings(d)}
+# X, Y = ${@features_to_busybox_settings(d)}
 # unfortunately doesn't seem to work with bitbake, workaround:
 def features_to_busybox_conf(d):
 	cnf, rem = features_to_busybox_settings(d)
@@ -103,6 +106,9 @@ python () {
 }
 
 do_prepare_config () {
+	if [ "$BUILD_REPRODUCIBLE_BINARIES" = "1" ]; then
+		export KCONFIG_NOTIMESTAMP=1
+	fi
 	sed -e '/CONFIG_STATIC/d' \
 		< ${WORKDIR}/defconfig > ${S}/.config
 	echo "# CONFIG_STATIC is not set" >> .config
@@ -119,6 +125,7 @@ do_prepare_config () {
 		  ${S}/.config.oe-tmp > ${S}/.config
 	fi
 	sed -i 's/CONFIG_IFUPDOWN_UDHCPC_CMD_OPTIONS="-R -n"/CONFIG_IFUPDOWN_UDHCPC_CMD_OPTIONS="-R -b"/' ${S}/.config
+	sed -i 's|${DEBUG_PREFIX_MAP}||g' ${S}/.config
 }
 
 # returns all the elements from the src uri that are .cfg files
@@ -139,8 +146,15 @@ do_configure () {
 
 do_compile() {
 	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+	if [ "$BUILD_REPRODUCIBLE_BINARIES" = "1" ]; then
+		export KCONFIG_NOTIMESTAMP=1
+	fi
 	if [ "${BUSYBOX_SPLIT_SUID}" = "1" -a x`grep "CONFIG_FEATURE_INDIVIDUAL=y" .config` = x ]; then
 	# split the .config into two parts, and make two busybox binaries
+		if [ -e .config.orig ]; then
+			# Need to guard again an interrupted do_compile - restore any backup
+			cp .config.orig .config
+		fi
 		cp .config .config.orig
 		oe_runmake busybox.cfg.suid
 		oe_runmake busybox.cfg.nosuid
@@ -238,9 +252,9 @@ do_install () {
 	fi
 
 	if grep -q "CONFIG_SYSLOGD=y" ${B}/.config; then
-		install -m 0755 ${WORKDIR}/syslog ${D}${sysconfdir}/init.d/syslog.${BPN}
-		install -m 644 ${WORKDIR}/syslog-startup.conf ${D}${sysconfdir}/syslog-startup.conf.${BPN}
-		install -m 644 ${WORKDIR}/syslog.conf ${D}${sysconfdir}/syslog.conf.${BPN}
+		install -m 0755 ${WORKDIR}/syslog ${D}${sysconfdir}/init.d/syslog
+		install -m 644 ${WORKDIR}/syslog-startup.conf ${D}${sysconfdir}/syslog-startup.conf
+		install -m 644 ${WORKDIR}/syslog.conf ${D}${sysconfdir}/syslog.conf
 	fi
 	if grep "CONFIG_CROND=y" ${B}/.config; then
 		install -m 0755 ${WORKDIR}/busybox-cron ${D}${sysconfdir}/init.d/
@@ -280,16 +294,6 @@ do_install () {
                 install -D -m 0777 ${WORKDIR}/rcS ${D}${sysconfdir}/init.d/rcS
                 install -D -m 0777 ${WORKDIR}/rcK ${D}${sysconfdir}/init.d/rcK
                 install -D -m 0755 ${WORKDIR}/runlevel ${D}${base_sbindir}/runlevel
-                if grep "CONFIG_FEATURE_USE_INITTAB=y" ${B}/.config; then
-                        install -D -m 0777 ${WORKDIR}/inittab ${D}${sysconfdir}/inittab
-                        tmp="${SERIAL_CONSOLES}"
-                        for i in $tmp
-                        do
-                                j=`echo ${i} | sed s/\;/\ /g`
-                                id=`echo ${i} | sed -e 's/^.*;//' -e 's/;.*//'`
-                                echo "$id::respawn:${base_sbindir}/getty ${j}" >> ${D}${sysconfdir}/inittab
-                        done
-                fi
         fi
 
     if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
@@ -301,7 +305,6 @@ do_install () {
 		install -d ${D}${sysconfdir}/default
 		install -m 0644 ${WORKDIR}/busybox-syslog.default ${D}${sysconfdir}/default/busybox-syslog
             fi
-            ln -sf /dev/null ${D}${systemd_unitdir}/system/syslog.service
         fi
         if grep -q "CONFIG_KLOGD=y" ${B}/.config; then
             install -d ${D}${systemd_unitdir}/system
@@ -312,7 +315,7 @@ do_install () {
 
     # Remove the sysvinit specific configuration file for systemd systems to avoid confusion
     if ${@bb.utils.contains('DISTRO_FEATURES', 'sysvinit', 'false', 'true', d)}; then
-	rm -f ${D}${sysconfdir}/syslog-startup.conf.${BPN}
+	rm -f ${D}${sysconfdir}/syslog-startup.conf
     fi
 }
 
@@ -326,26 +329,12 @@ inherit update-alternatives
 
 ALTERNATIVE_PRIORITY = "50"
 
-ALTERNATIVE_${PN}-syslog += "syslog-conf"
-ALTERNATIVE_LINK_NAME[syslog-conf] = "${sysconfdir}/syslog.conf"
-
-python () {
-    if bb.utils.contains('DISTRO_FEATURES', 'sysvinit', True, False, d):
-        pn = d.getVar('PN', True)
-        d.appendVar('ALTERNATIVE_%s-syslog' % (pn), ' syslog-init')
-        d.setVarFlag('ALTERNATIVE_LINK_NAME', 'syslog-init', '%s/init.d/syslog' % (d.getVar('sysconfdir', True)))
-        d.setVarFlag('ALTERNATIVE_TARGET', 'syslog-init', '%s/init.d/syslog.%s' % (d.getVar('sysconfdir', True), d.getVar('BPN', True)))
-        d.appendVar('ALTERNATIVE_%s-syslog' % (pn), ' syslog-startup-conf')
-        d.setVarFlag('ALTERNATIVE_LINK_NAME', 'syslog-startup-conf', '%s/syslog-startup.conf' % (d.getVar('sysconfdir', True)))
-        d.setVarFlag('ALTERNATIVE_TARGET', 'syslog-startup-conf', '%s/syslog-startup.conf.%s' % (d.getVar('sysconfdir', True), d.getVar('BPN', True)))
-}
-
 python do_package_prepend () {
     # We need to load the full set of busybox provides from the /etc/busybox.links
     # Use this to see the update-alternatives with the right information
 
-    dvar = d.getVar('D', True)
-    pn = d.getVar('PN', True)
+    dvar = d.getVar('D')
+    pn = d.getVar('PN')
     def set_alternative_vars(links, target):
         links = d.expand(links)
         target = d.expand(target)
@@ -395,6 +384,9 @@ pkg_postinst_${PN} () {
 			fi
 		done
 	fi
+	if grep -q "^${base_bindir}/bash$" $D${sysconfdir}/busybox.links*; then
+		grep -q "^${base_bindir}/bash$" $D${sysconfdir}/shells || echo ${base_bindir}/bash >> $D${sysconfdir}/shells
+	fi
 }
 
 pkg_prerm_${PN} () {
@@ -419,6 +411,12 @@ pkg_prerm_${PN} () {
 	export PATH=$PATH:$tmpdir
 }
 
+pkg_postrm_${PN} () {
+	if grep -q "^${base_bindir}/bash$" $D${sysconfdir}/busybox.links* && [ ! -e $D${base_bindir}/bash ]; then
+		printf "$(grep -v "^${base_bindir}/bash$" $D${sysconfdir}/shells)\n" > $D${sysconfdir}/shells
+	fi
+}
+
 pkg_prerm_${PN}-syslog () {
 	# remove syslog
 	if test "x$D" = "x"; then
@@ -427,3 +425,5 @@ pkg_prerm_${PN}-syslog () {
 		fi
 	fi
 }
+
+RPROVIDES_${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'usrmerge', '/bin/sh', '', d)}"

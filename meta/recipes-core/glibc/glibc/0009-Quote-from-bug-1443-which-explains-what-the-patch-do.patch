@@ -1,4 +1,4 @@
-From 1b61649e545de76dd79a5e2c39bb16d0c4623160 Mon Sep 17 00:00:00 2001
+From 93b5d6bed19939039031c45b777d29619db06184 Mon Sep 17 00:00:00 2001
 From: Khem Raj <raj.khem@gmail.com>
 Date: Wed, 18 Mar 2015 00:20:09 +0000
 Subject: [PATCH 09/25] Quote from bug 1443 which explains what the patch does
@@ -45,10 +45,10 @@ Signed-off-by: Khem Raj <raj.khem@gmail.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/sysdeps/arm/dl-machine.h b/sysdeps/arm/dl-machine.h
-index 60eee00..7d54d5e 100644
+index 7053ead16e..0b1e1716b0 100644
 --- a/sysdeps/arm/dl-machine.h
 +++ b/sysdeps/arm/dl-machine.h
-@@ -499,7 +499,7 @@ elf_machine_rel (struct link_map *map, const Elf32_Rel *reloc,
+@@ -500,7 +500,7 @@ elf_machine_rel (struct link_map *map, const Elf32_Rel *reloc,
  
  	case R_ARM_TLS_DTPOFF32:
  	  if (sym != NULL)
@@ -58,5 +58,5 @@ index 60eee00..7d54d5e 100644
  
  	case R_ARM_TLS_TPOFF32:
 -- 
-2.8.2
+2.13.2
 

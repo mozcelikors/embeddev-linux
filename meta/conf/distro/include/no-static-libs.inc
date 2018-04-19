@@ -25,6 +25,9 @@ DISABLE_STATIC_pn-openjade-native = ""
 DISABLE_STATIC_pn-openssl = ""
 DISABLE_STATIC_pn-openssl-native = ""
 DISABLE_STATIC_pn-nativesdk-openssl = ""
+DISABLE_STATIC_pn-openssl10 = ""
+DISABLE_STATIC_pn-openssl10-native = ""
+DISABLE_STATIC_pn-nativesdk-openssl10 = ""
 # libssp-static-dev included in build-appliance
 DISABLE_STATIC_pn-gcc-runtime = ""
 # libusb1-native is used to build static dfu-util-native
@@ -32,4 +35,8 @@ DISABLE_STATIC_pn-libusb1-native = ""
 
 EXTRA_OECONF_append = "${DISABLE_STATIC}"
 
-EXTRA_OECMAKE_append_pn-libical = "-DSHARED_ONLY=True"
+EXTRA_OECMAKE_append_pn-libical = " -DSHARED_ONLY=True"
+
+EXCONFIG_ARGS_append_pn-ncurses = " --without-normal"
+EXCONFIG_ARGS_append_pn-ncurses-native = " --without-normal"
+EXCONFIG_ARGS_append_pn-nativesdk-ncurses = " --without-normal"

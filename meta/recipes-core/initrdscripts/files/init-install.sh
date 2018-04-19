@@ -21,6 +21,8 @@ live_dev_name=${live_dev_name#\/dev/}
 case $live_dev_name in
     mmcblk*)
     ;;
+    nvme*)
+    ;;
     *)
         live_dev_name=${live_dev_name%%[0-9]*}
     ;;
@@ -130,7 +132,7 @@ fi
 
 disk_size=$(parted ${device} unit mb print | grep '^Disk .*: .*MB' | cut -d" " -f 3 | sed -e "s/MB//")
 
-grub_version=$(grub-install -v|sed 's/.* \([0-9]\).*/\1/')
+grub_version=$(grub-install -V|sed 's/.* \([0-9]\).*/\1/')
 
 if [ $grub_version -eq 0 ] ; then
     bios_boot_size=0
@@ -153,7 +155,8 @@ swap_start=$((rootfs_end))
 # 2) they are detected asynchronously (need rootwait)
 rootwait=""
 part_prefix=""
-if [ ! "${device#/dev/mmcblk}" = "${device}" ]; then
+if [ ! "${device#/dev/mmcblk}" = "${device}" ] || \
+   [ ! "${device#/dev/nvme}" = "${device}" ]; then
     part_prefix="p"
     rootwait="rootwait"
 fi
@@ -207,6 +210,13 @@ echo "Creating swap partition on $swap"
 parted ${device} mkpart $pname linux-swap $swap_start 100%
 
 parted ${device} print
+
+echo "Waiting for device nodes..."
+C=0
+while [ $C -ne 3 ] && [ ! -e $bootfs  -o ! -e $rootfs -o ! -e $swap ]; do
+    C=$(( C + 1 ))
+    sleep 1
+done
 
 echo "Formatting $bootfs to ext3..."
 mkfs.ext3 $bootfs

@@ -1,4 +1,5 @@
 SUMMARY = "A suite of basic system administration utilities"
+HOMEPAGE = "http://userweb.kernel.org/~kzak/util-linux/"
 DESCRIPTION = "Util-linux includes a suite of basic system administration utilities \
 commonly found on most Linux systems.  Some of the more important utilities include \
 disk partitioning, kernel message management, filesystem creation, and system login."
@@ -29,13 +30,14 @@ SRC_URI = "${KERNELORG_MIRROR}/linux/utils/util-linux/v${MAJOR_VERSION}/util-lin
 PACKAGES =+ "util-linux-agetty util-linux-fdisk util-linux-cfdisk util-linux-sfdisk \
              util-linux-swaponoff util-linux-losetup util-linux-umount \
              util-linux-mount util-linux-readprofile util-linux-uuidd \
-             util-linux-uuidgen util-linux-lscpu util-linux-fsck util-linux-blkid \
-             util-linux-mkfs util-linux-mcookie util-linux-reset \
-             util-linux-mkfs.cramfs util-linux-fsck.cramfs util-linux-fstrim \
+             util-linux-uuidgen util-linux-lscpu util-linux-fsck.cramfs util-linux-fsck \
+             util-linux-blkid util-linux-mkfs util-linux-mcookie util-linux-reset \
+             util-linux-lsblk util-linux-mkfs.cramfs util-linux-fstrim \
              util-linux-partx util-linux-hwclock util-linux-mountpoint \
-             util-linux-findfs util-linux-getopt util-linux-sulogin util-linux-prlimit"
+             util-linux-findfs util-linux-getopt util-linux-sulogin util-linux-prlimit \
+             util-linux-ionice util-linux-switch-root"
 PACKAGES += "${@bb.utils.contains('PACKAGECONFIG', 'pylibmount', 'util-linux-pylibmount', '', d)}"
-PACKAGES =+ "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'util-linux-runuser', '', d)}"
+PACKAGES =+ "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'util-linux-runuser util-linux-su', '', d)}"
 
 PACKAGES_DYNAMIC = "^util-linux-lib.*"
 
@@ -52,7 +54,7 @@ SHARED_EXTRA_OECONF = "--disable-use-tty-group \
 
 EXTRA_OECONF = "${SHARED_EXTRA_OECONF} --libdir=${base_libdir}"
 
-PACKAGECONFIG_class-target ?= "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam', '', d)}"
+PACKAGECONFIG_class-target ?= "${@bb.utils.filter('DISTRO_FEATURES', 'pam', d)}"
 PACKAGECONFIG[pam] = "--enable-su --enable-runuser,--disable-su --disable-runuser, libpam,"
 
 # Respect the systemd feature for uuidd
@@ -84,17 +86,21 @@ FILES_util-linux-umount = "${base_bindir}/umount.${BPN}"
 FILES_util-linux-readprofile = "${sbindir}/readprofile.${BPN}"
 FILES_util-linux-uuidgen = "${bindir}/uuidgen"
 FILES_util-linux-uuidd = "${sbindir}/uuidd"
-FILES_util-linux-reset = "${base_bindir}/reset"
+FILES_util-linux-reset = "${base_bindir}/reset*"
 FILES_util-linux-partx = "${sbindir}/partx"
 FILES_util-linux-hwclock = "${base_sbindir}/hwclock.${BPN}"
 FILES_util-linux-findfs = "${sbindir}/findfs"
 FILES_util-linux-getopt = "${base_bindir}/getopt.${BPN}"
 FILES_util-linux-runuser = "${sbindir}/runuser"
 FILES_util-linux-prlimit = "${bindir}/prlimit"
+FILES_util-linux-ionice = "${bindir}/ionice"
+FILES_util-linux-su = "${bindir}/su.util-linux ${sysconfdir}/pam.d/su-l"
+CONFFILES_util-linux-su = "${sysconfdir}/pam.d/su-l"
 
 FILES_util-linux-pylibmount = "${PYTHON_SITEPACKAGES_DIR}/libmount/pylibmount.so \
                                ${PYTHON_SITEPACKAGES_DIR}/libmount/__init__.* \
                                ${PYTHON_SITEPACKAGES_DIR}/libmount/__pycache__/*"
+FILES_util-linux-lsblk = "${bindir}/lsblk"
 FILES_util-linux-lscpu = "${bindir}/lscpu"
 
 FILES_util-linux-fsck = "${base_sbindir}/fsck*"
@@ -106,6 +112,8 @@ FILES_util-linux-mkfs.cramfs = "${sbindir}/mkfs.cramfs"
 FILES_util-linux-sulogin = "${base_sbindir}/sulogin*"
 FILES_util-linux-mountpoint = "${base_bindir}/mountpoint.${BPN}"
 
+FILES_util-linux-switch-root = "${base_sbindir}/switch_root.${BPN}"
+
 # Util-linux' blkid replaces the e2fsprogs one
 FILES_util-linux-blkid = "${base_sbindir}/blkid*"
 RCONFLICTS_util-linux-blkid = "e2fsprogs-blkid"
@@ -115,11 +123,12 @@ RREPLACES_util-linux-blkid = "e2fsprogs-blkid"
 RDEPENDS_util-linux-reset += "ncurses"
 
 RDEPENDS_util-linux-runuser += "libpam"
+RDEPENDS_util-linux-su += "libpam"
 
-RDEPENDS_${PN} = "util-linux-umount util-linux-swaponoff util-linux-losetup util-linux-sulogin"
-RDEPENDS_${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'util-linux-runuser', '', d)}"
+RDEPENDS_${PN} = "util-linux-umount util-linux-swaponoff util-linux-losetup util-linux-sulogin util-linux-lsblk"
+RDEPENDS_${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'util-linux-runuser util-linux-su', '', d)}"
 
-RRECOMMENDS_${PN} = "util-linux-fdisk util-linux-cfdisk util-linux-sfdisk util-linux-mount util-linux-readprofile util-linux-mkfs util-linux-mountpoint util-linux-prlimit"
+RRECOMMENDS_${PN} = "util-linux-fdisk util-linux-cfdisk util-linux-sfdisk util-linux-mount util-linux-readprofile util-linux-mkfs util-linux-mountpoint util-linux-prlimit util-linux-ionice util-linux-switch-root"
 
 RRECOMMENDS_${PN}_class-native = ""
 RRECOMMENDS_${PN}_class-nativesdk = ""
@@ -150,7 +159,7 @@ do_install () {
 	mkdir -p ${D}${base_bindir}
 
         sbinprogs="agetty ctrlaltdel cfdisk vipw vigr"
-        sbinprogs_a="pivot_root hwclock mkswap mkfs.minix fsck.minix losetup swapon swapoff fdisk fsck blkid blockdev fstrim sulogin switch_root"
+        sbinprogs_a="pivot_root hwclock mkswap mkfs.minix fsck.minix losetup swapon swapoff fdisk fsck blkid blockdev fstrim sulogin switch_root nologin"
         binprogs_a="dmesg getopt kill more umount mount login reset su mountpoint"
 
         if [ "${base_sbindir}" != "${sbindir}" ]; then
@@ -176,10 +185,16 @@ do_install () {
 
 	rm -f ${D}${bindir}/chkdupexe
 
-	if [ "${@bb.utils.contains('DISTRO_FEATURES', 'pam', 'pam', '', d)}" = "pam" ]; then
+	if [ "${@bb.utils.filter('DISTRO_FEATURES', 'pam', d)}" ]; then
 		install -d ${D}${sysconfdir}/pam.d
 		install -m 0644 ${WORKDIR}/runuser.pamd ${D}${sysconfdir}/pam.d/runuser
 		install -m 0644 ${WORKDIR}/runuser-l.pamd ${D}${sysconfdir}/pam.d/runuser-l
+	fi
+	if [ "${@bb.utils.filter('PACKAGECONFIG', 'pam', d)}" ]; then
+		# Required for "su -" aka "su --login" because
+		# otherwise it uses "other", which has "auth pam_deny.so"
+		# and thus prevents the operation.
+		ln -s su ${D}${sysconfdir}/pam.d/su-l
 	fi
 }
 
@@ -193,7 +208,7 @@ ALTERNATIVE_PRIORITY = "80"
 
 ALTERNATIVE_${PN}  = "dmesg kill more mkswap blockdev pivot_root switch_root"
 ALTERNATIVE_${PN} += "hexdump last lastb logger mesg renice wall"
-ALTERNATIVE_${PN} += "setsid chrt flock utmpdump eject"
+ALTERNATIVE_${PN} += "setsid chrt flock utmpdump eject nologin"
 
 ALTERNATIVE_LINK_NAME[dmesg] = "${base_bindir}/dmesg"
 ALTERNATIVE_LINK_NAME[kill] = "${base_bindir}/kill"
@@ -203,8 +218,9 @@ ALTERNATIVE_LINK_NAME[blockdev] = "${base_sbindir}/blockdev"
 ALTERNATIVE_LINK_NAME[pivot_root] = "${base_sbindir}/pivot_root"
 ALTERNATIVE_LINK_NAME[switch_root] = "${base_sbindir}/switch_root"
 ALTERNATIVE_LINK_NAME[eject] = "${bindir}/eject"
+ALTERNATIVE_LINK_NAME[nologin] = "${base_sbindir}/nologin"
 
-ALTERNATIVE_${PN}-doc = "mountpoint.1 last.1 lastb.1 mesg.1 wall.1 nologin.8 sulogin.8 utmpdump.1 reset.1 kill.1 libblkid.3 blkid.8 findfs.8 fsck.8 uuid.3"
+ALTERNATIVE_${PN}-doc = "mountpoint.1 last.1 lastb.1 mesg.1 wall.1 nologin.8 sulogin.8 utmpdump.1 reset.1 kill.1 libblkid.3 blkid.8 findfs.8 fsck.8 uuid.3 eject.1 logger.1"
 
 ALTERNATIVE_LINK_NAME[last.1] = "${mandir}/man1/last.1"
 ALTERNATIVE_LINK_NAME[lastb.1] = "${mandir}/man1/lastb.1"
@@ -221,6 +237,8 @@ ALTERNATIVE_LINK_NAME[blkid.8] = "${mandir}/man8/blkid.8"
 ALTERNATIVE_LINK_NAME[findfs.8] = "${mandir}/man8/findfs.8"
 ALTERNATIVE_LINK_NAME[fsck.8] = "${mandir}/man8/fsck.8"
 ALTERNATIVE_LINK_NAME[uuid.3] = "${mandir}/man3/uuid.3"
+ALTERNATIVE_LINK_NAME[eject.1] = "${mandir}/man1/eject.1"
+ALTERNATIVE_LINK_NAME[logger.1] = "${mandir}/man1/logger.1"
 
 ALTERNATIVE_util-linux-hwclock = "hwclock"
 ALTERNATIVE_LINK_NAME[hwclock] = "${base_sbindir}/hwclock"
@@ -270,7 +288,7 @@ ALTERNATIVE_LINK_NAME[mountpoint] = "${base_bindir}/mountpoint"
 BBCLASSEXTEND = "native nativesdk"
 
 python do_package_prepend () {
-    if '--enable-su' in d.getVar('EXTRA_OECONF', True).split():
+    if '--enable-su' in d.getVar('EXTRA_OECONF').split():
         d.appendVar(d.expand('ALTERNATIVE_${PN}'), ' su')
         d.appendVar(d.expand('ALTERNATIVE_${PN}-doc'), ' su.1')
 
@@ -285,7 +303,8 @@ python populate_packages_prepend() {
                       extra_depends='', prepend=True, allow_links=True)
 }
 
-RDEPENDS_${PN}-ptest = "bash grep coreutils"
+RDEPENDS_${PN}-bash-completion += "util-linux-lsblk"
+RDEPENDS_${PN}-ptest = "bash grep coreutils which util-linux-blkid util-linux-fsck btrfs-tools"
 
 do_compile_ptest() {
     oe_runmake buildtest-TESTS
@@ -293,23 +312,30 @@ do_compile_ptest() {
 
 do_install_ptest() {
     mkdir -p ${D}${PTEST_PATH}/tests/ts
-    find . -maxdepth 1 -type f -perm -111 -exec cp {} ${D}${PTEST_PATH} \;
-    cp ${S}/tests/functions.sh ${D}${PTEST_PATH}/tests/
-    cp ${S}/tests/commands.sh ${D}${PTEST_PATH}/tests/
-    cp ${S}/tests/run.sh ${D}${PTEST_PATH}/tests/
-    cp -pR ${S}/tests/expected ${D}${PTEST_PATH}/tests/expected
+    find . -name 'test*' -maxdepth 1 -type f -perm -111 -exec cp {} ${D}${PTEST_PATH} \;
+    find ./.libs -name 'sample*' -maxdepth 1 -type f -perm -111 -exec cp {} ${D}${PTEST_PATH} \;
+    find ./.libs -name 'test*' -maxdepth 1 -type f -perm -111 -exec cp {} ${D}${PTEST_PATH} \;
 
-    list="bitops build-sys cal col colrm column dmesg fsck hexdump hwclock ipcs isosize login look md5 misc more namei paths schedutils script swapon tailf"
-    # The following tests are not installed  yet:
-    # blkid scsi_debug module dependent
-    # cramfs gcc dependent
-    # eject gcc dependent
-    # fdisk scsi_debug module and gcc dependent
-    # lscpu gcc dependant
-    # libmount uuidgen dependent
-    # mount gcc dependant
-    # partx blkid dependant
-    for d in $list; do
-        cp -pR ${S}/tests/ts/$d ${D}${PTEST_PATH}/tests/ts/
-    done
+    cp ${S}/tests/*.sh ${D}${PTEST_PATH}/tests/
+    cp -pR ${S}/tests/expected ${D}${PTEST_PATH}/tests/expected
+    cp -pR ${S}/tests/ts ${D}${PTEST_PATH}/tests/
+    cp ${WORKDIR}/build/config.h ${D}${PTEST_PATH}
+
+    # The original paths of executables to be tested point to a local folder containing
+    # the executables. We want to test the installed executables, not the local copies.
+    # So strip the paths, the executables will be located via "which"
+    sed  -i \
+         -e '/^TS_CMD/ s|$top_builddir/||g' \
+         -e '/^TS_HELPER/ s|$top_builddir|${PTEST_PATH}|g' \
+         ${D}${PTEST_PATH}/tests/commands.sh
+
+    # Change 'if [ ! -x "$1" ]' to 'if [ ! -x "`which $1 2>/dev/null`"]'
+    sed -i -e \
+        '/^\tif[[:space:]]\[[[:space:]]![[:space:]]-x[[:space:]]"$1"/s|$1|`which $1 2>/dev/null`|g' \
+         ${D}${PTEST_PATH}/tests/functions.sh
+
+    # "kill -L" behaves differently than "/bin/kill -L" so we need an additional fix
+    sed -i -e \
+         '/^TS_CMD_KILL/ s|kill|/bin/kill|g' \
+         ${D}${PTEST_PATH}/tests/commands.sh
 }

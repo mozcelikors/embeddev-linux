@@ -9,6 +9,14 @@ EXTRA_OECONF_PATHS = "\
 
 EXTRA_OECONF_append_linuxstdbase = " --enable-clocale=gnu"
 
+# ARMv6+ adds atomic instructions that affect the ABI in libraries built
+# with TUNE_CCARGS in gcc-runtime.  Make the compiler default to a
+# compatible architecture.  armv6 and armv7a cover the minimum tune
+# features used in OE.
+EXTRA_OECONF_append_armv6 = " --with-arch=armv6"
+EXTRA_OECONF_append_armv7a = " --with-arch=armv7-a"
+EXTRA_OECONF_append_armv7ve = " --with-arch=armv7-a"
+
 # libcc1 requres gcc_cv_objdump when cross build, but gcc_cv_objdump is
 # set in subdir gcc, so subdir libcc1 can't use it, export it here to
 # fix the problem.
@@ -31,7 +39,7 @@ PACKAGES = "\
 FILES_${PN} = "\
     ${bindir}/${TARGET_PREFIX}gcc* \
     ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/collect2* \
-    ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/cc* \
+    ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/cc1plus \
     ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/lto* \
     ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/lib*${SOLIBS} \
     ${libexecdir}/gcc/${TARGET_SYS}/${BINV}/liblto*${SOLIBSDEV} \
@@ -46,6 +54,7 @@ RRECOMMENDS_${PN} += "\
     libssp \
     libssp-dev \
 "
+RDEPENDS_${PN} += "cpp"
 
 FILES_${PN}-dev = "\
     ${gcclibdir}/${TARGET_SYS}/${BINV}/lib*${SOLIBSDEV} \
@@ -179,6 +188,8 @@ do_install () {
 	ln -sf ${TARGET_PREFIX}g++ g++
 	ln -sf ${TARGET_PREFIX}gcc gcc
 	ln -sf ${TARGET_PREFIX}cpp cpp
+	ln -sf ${TARGET_PREFIX}gcov gcov
+	ln -sf ${TARGET_PREFIX}gcov-tool gcov-tool
 	install -d ${D}${base_libdir}
 	ln -sf ${bindir}/${TARGET_PREFIX}cpp ${D}${base_libdir}/cpp
 	ln -sf g++ c++

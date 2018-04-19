@@ -19,12 +19,14 @@ valid_archs = "alpha cris ia64 \
 def map_kernel_arch(a, d):
     import re
 
-    valid_archs = d.getVar('valid_archs', True).split()
+    valid_archs = d.getVar('valid_archs').split()
 
     if   re.match('(i.86|athlon|x86.64)$', a):  return 'x86'
     elif re.match('armeb$', a):                 return 'arm'
     elif re.match('aarch64$', a):               return 'arm64'
     elif re.match('aarch64_be$', a):            return 'arm64'
+    elif re.match('aarch64_ilp32$', a):         return 'arm64'
+    elif re.match('aarch64_be_ilp32$', a):      return 'arm64'
     elif re.match('mips(isa|)(32|64|)(r6|)(el|)$', a):      return 'mips'
     elif re.match('p(pc|owerpc)(|64)', a):      return 'powerpc'
     elif re.match('sh(3|4)$', a):               return 'sh'
@@ -32,9 +34,11 @@ def map_kernel_arch(a, d):
     elif re.match('microblazee[bl]', a):        return 'microblaze'
     elif a in valid_archs:                      return a
     else:
+        if not d.getVar("TARGET_OS").startswith("linux"):
+            return a
         bb.error("cannot map '%s' to a linux kernel architecture" % a)
 
-export ARCH = "${@map_kernel_arch(d.getVar('TARGET_ARCH', True), d)}"
+export ARCH = "${@map_kernel_arch(d.getVar('TARGET_ARCH'), d)}"
 
 def map_uboot_arch(a, d):
     import re
@@ -43,7 +47,7 @@ def map_uboot_arch(a, d):
     elif re.match('i.86$', a): return 'x86'
     return a
 
-export UBOOT_ARCH = "${@map_uboot_arch(d.getVar('ARCH', True), d)}"
+export UBOOT_ARCH = "${@map_uboot_arch(d.getVar('ARCH'), d)}"
 
 # Set TARGET_??_KERNEL_ARCH in the machine .conf to set architecture
 # specific options necessary for building the kernel and modules.
@@ -57,4 +61,5 @@ HOST_AR_KERNEL_ARCH ?= "${TARGET_AR_KERNEL_ARCH}"
 KERNEL_CC = "${CCACHE}${HOST_PREFIX}gcc ${HOST_CC_KERNEL_ARCH} -fuse-ld=bfd"
 KERNEL_LD = "${CCACHE}${HOST_PREFIX}ld.bfd ${HOST_LD_KERNEL_ARCH}"
 KERNEL_AR = "${CCACHE}${HOST_PREFIX}ar ${HOST_AR_KERNEL_ARCH}"
+TOOLCHAIN = "gcc"
 

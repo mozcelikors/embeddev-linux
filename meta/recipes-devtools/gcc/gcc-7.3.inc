@@ -10,8 +10,8 @@ BINV = "7.3.0"
 
 FILESEXTRAPATHS =. "${FILE_DIRNAME}/gcc-7.3:${FILE_DIRNAME}/gcc-7.3/backport:"
 
-DEPENDS =+ "mpfr gmp libmpc zlib flex-native"
-NATIVEDEPS = "mpfr-native gmp-native libmpc-native zlib-native flex-native"
+DEPENDS =+ "mpfr gmp libmpc zlib"
+NATIVEDEPS = "mpfr-native gmp-native libmpc-native zlib-native"
 
 LICENSE = "GPL-3.0-with-GCC-exception & GPLv3"
 
@@ -73,6 +73,7 @@ SRC_URI = "\
            file://0047-sync-gcc-stddef.h-with-musl.patch \
            file://0048-gcc-Enable-static-PIE.patch \
            file://fix-segmentation-fault-precompiled-hdr.patch \
+           file://0050-RISC-V-Handle-non-legitimate-address-in-riscv_legiti.patch \
            file://no-sse-fix-test-case-failures.patch \
            ${BACKPORTS} \
 "

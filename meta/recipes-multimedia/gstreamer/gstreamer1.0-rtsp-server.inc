@@ -3,7 +3,7 @@ HOMEPAGE = "http://cgit.freedesktop.org/gstreamer/gst-rtsp-server/"
 SECTION = "multimedia"
 LICENSE = "LGPLv2"
 
-DEPENDS = "gstreamer1.0 libcgroup gstreamer1.0-plugins-base"
+DEPENDS = "gstreamer1.0 libcgroup gstreamer1.0-plugins-base libcheck"
 
 PNREAL = "gst-rtsp-server"
 
@@ -36,3 +36,5 @@ patch_gtk_doc_makefiles() {
 
 do_configure[prefuncs] += " delete_pkg_m4_file patch_gtk_doc_makefiles"
 
+# Needs to be disable due to a dependency on gstreamer-plugins introspection files
+EXTRA_OECONF_append_mips64 = " --disable-introspection "

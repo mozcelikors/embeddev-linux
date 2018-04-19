@@ -1,4 +1,4 @@
-From fddd7178915968acf680814411b8b3cb137d0587 Mon Sep 17 00:00:00 2001
+From 91da0458b333249eb9c2f4c1f1e53fa4bc085cc9 Mon Sep 17 00:00:00 2001
 From: Khem Raj <raj.khem@gmail.com>
 Date: Tue, 19 Jan 2016 18:18:52 -0800
 Subject: [PATCH 01/10] include sys/types.h for mode_t
@@ -14,7 +14,7 @@ Upstream-Status: Pending
  1 file changed, 1 insertion(+)
 
 diff --git a/gdb/gdbserver/target.h b/gdb/gdbserver/target.h
-index 5af2051..f42c510 100644
+index 3cc2bc4bab..e6b19b06b9 100644
 --- a/gdb/gdbserver/target.h
 +++ b/gdb/gdbserver/target.h
 @@ -28,6 +28,7 @@
@@ -26,5 +26,5 @@ index 5af2051..f42c510 100644
  struct emit_ops;
  struct buffer;
 -- 
-2.8.2
+2.13.1
 

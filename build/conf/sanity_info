@@ -1,4 +1,4 @@
 SANITY_VERSION 1
 TMPDIR /home/mozcelikors/poky/build/tmp
 SSTATE_DIR /home/mozcelikors/poky/build/sstate-cache
-NATIVELSBSTRING Ubuntu-16.04
+NATIVELSBSTRING ubuntu-16.04

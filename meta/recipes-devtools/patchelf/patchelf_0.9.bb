@@ -2,6 +2,8 @@ SRC_URI = "http://nixos.org/releases/${BPN}/${BPN}-${PV}/${BPN}-${PV}.tar.bz2 \
            file://Skip-empty-section-fixes-66.patch \
            file://handle-read-only-files.patch \
            file://Increase-maxSize-to-64MB.patch \
+           file://avoidholes.patch \
+           file://fix-adjusting-startPage.patch \
 "
 
 LICENSE = "GPLv3"

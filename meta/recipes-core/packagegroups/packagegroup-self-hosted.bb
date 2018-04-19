@@ -10,6 +10,9 @@ inherit packagegroup  distro_features_check
 # rdepends on libx11-dev
 REQUIRED_DISTRO_FEATURES = "x11"
 
+# rdepends on libgl
+REQUIRED_DISTRO_FEATURES += "opengl"
+
 PACKAGES = "\
     packagegroup-self-hosted \
     packagegroup-self-hosted-debug \
@@ -39,7 +42,6 @@ RDEPENDS_packagegroup-self-hosted-host-tools = "\
     mc-fish \
     mc-helpers \
     mc-helpers-perl \
-    mc-helpers-python \
     parted \
     ${PSEUDO} \
     screen \
@@ -138,17 +140,19 @@ RDEPENDS_packagegroup-self-hosted-extended = "\
     nfs-utils \
     nfs-utils-client \
     openssl \
+    openssh-scp \
     openssh-sftp-server \
+    openssh-ssh \
     opkg \
     opkg-utils \
     patch \
     perl \
     perl-dev \
+    perl-misc \
     perl-modules \
     perl-pod \
     python \
     python-modules \
-    python-git \
     python3 \
     python3-modules \
     python3-git \

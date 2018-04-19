@@ -15,9 +15,6 @@ SRC_URI = "${SOURCEFORGE_MIRROR}/${BPN}/${BP}.tar.bz2 \
            file://0001-include-stdint.h-for-uintptr_t.patch \
            "
 
-SRC_URI_append_libc-uclibc = " file://remove-des-functionality.patch \
-                             "
-
 SRC_URI_append_libc-musl = " \
                              file://Use-netbsd-queue.h.patch \
                            "
