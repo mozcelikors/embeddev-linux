@@ -1,0 +1,7 @@
+# Author: Mustafa Ozcelikors <mozcelikors@gmail.com>
+# Disable spidev for FBTFT to use.
+
+define KFEATURE_DESCRIPTION "Disable spidev for FBTFT to use"
+define KFEATURE_COMPATIBILITY all
+
+kconf hardware disable_spidev.cfg
