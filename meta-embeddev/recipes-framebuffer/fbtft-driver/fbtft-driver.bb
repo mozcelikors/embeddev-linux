@@ -6,8 +6,9 @@ HOMEPAGE = "https://github.com/notro/fbtft.git"
 SECTION = "kernel/modules"
 PRIORITY = "optional"
 LICENSE = "CLOSED"
-RDEPENDS_fbtft = "kernel (${KERNEL_VERSION})"
-DEPENDS = "virtual/kernel"
+#RDEPENDS_fbtft = "kernel (${KERNEL_VERSION})"
+#RDEPENDS_${PN} = "kernel"
+#DEPENDS = "virtual/kernel"
 PR = "r0"
 
 SRCREV = "71994224c5ed951eab7ca9da2c919456d1632d15"
@@ -17,23 +18,29 @@ FILESEXTRAPATHS_prepend := "${THISDIR}:"
 SRC_URI = "git://github.com/notro/fbtft.git;protocol=http \
 	   file://dma_disable.patch \
 	   file://cansleep.patch \
-           file://fbtftenable.scc"
+           file://fbtftenable.scc \
+           file://fbtftenable.cfg \
+          "
 
 S="${WORKDIR}/git/"
 
 inherit module
 
-do_compile() {
-  unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS CC LD CPP
+module_do_compile() {
+	bbwarn 'Kernel CC: "${KERNEL_CC}"'
+	bbwarn 'Kernel LD: "${KERNEL_LD}"'
+	unset CC LD
+  unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS CPP
   oe_runmake 'MODPATH="${D}${base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/video/fbtft" ' \
              'KDIR="${STAGING_KERNEL_DIR}"' \
              'KERNEL_VERSION="${KERNEL_VERSION}"' \
              'CC="${KERNEL_CC}"' \
              'LD="${KERNEL_LD}"'
+
 }
 
 
-do_install() {
+module_do_install() {
    install -d ${D}${base_libdir}/modules/${KERNEL_VERSION}/kernel/drivers/video/fbtft
 
 #   for driver_ko in ${S}/$
