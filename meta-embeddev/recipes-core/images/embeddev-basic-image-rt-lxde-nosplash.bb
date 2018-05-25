@@ -203,7 +203,7 @@ SPLASH_remove = "plymouth"
 
 # Init Scripts ###############################################################################
 
-PACKAGES_CUSTOM_append = " initscriptrpidisplay "
+PACKAGES_CUSTOM_append = " initscriptrpidisplay initdisplaydrivers "
 
 # Image Generation ###########################################################################
 

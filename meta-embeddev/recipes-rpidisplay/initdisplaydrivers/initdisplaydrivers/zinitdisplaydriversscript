@@ -1,0 +1,4 @@
+#!/bin/bash
+
+modprobe fbtft_device custom name=fb_ili9341 gpios=reset:25,dc:24,led:18 speed=16000000 rotate=270 bgr=1 1>/dev/kmsg 2>/dev/kmsg
+

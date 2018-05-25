@@ -32,4 +32,3 @@ if [ -e /etc/rotation ]; then
 fi
 
 /usr/bin/psplash --angle $rotation &
-

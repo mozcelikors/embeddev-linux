@@ -1,0 +1,75 @@
+#!/bin/sh 
+### BEGIN INIT INFO
+# Provides:             psplash
+# Required-Start:
+# Required-Stop:
+# Default-Start:        S
+# Default-Stop:
+### END INIT INFO
+
+# Welcome message
+printf "\n" 1> /dev/kmsg
+printf "      ----------------------------------------\n" 1> /dev/kmsg
+printf "                                              \n" 1> /dev/kmsg
+printf "                    Welcome to                \n" 1> /dev/kmsg
+printf "           E M B E D D E V   L I N U X        \n" 1> /dev/kmsg
+printf "                                              \n" 1> /dev/kmsg
+printf "      ----------------------------------------\n\n" 1> /dev/kmsg
+ 
+echo "" 
+echo "      ----------------------------------------" 
+echo "                                              " 
+echo "                    Welcome to                " 
+echo "           E M B E D D E V   L I N U X        " 
+echo "                                              " 
+echo "      ----------------------------------------" 
+
+# Load modules.....
+#modprobe spidev 2> /dev/kmsg
+#modprobe spi-bcm2835 2> /dev/kmsg
+#modprobe fbtft dma 2> /dev/kmsg
+#modprobe fbtft_device custom name=fb_ili9341 gpios=reset:25,dc:24,led:18 speed=16000000 rotate=270 bgr=1 2> /dev/kmsg &
+
+export FBDEV=/dev/fb1
+
+#cat /dev/kmsg
+
+# Wait until framebuffer is available..
+#while [ ! -e /dev/fb1 ]
+#do
+#  sleep 1
+#done
+
+if [ -e /dev/fb1 ]; then
+    printf "/dev/fb1 exists!" 1> /dev/kmsg
+fi
+
+if [ ! -e /dev/fb0 ]; then
+    echo "Framebuffer /dev/fb0 not detected"
+    echo "Boot splashscreen disabled"
+    exit 0;
+fi
+
+read CMDLINE < /proc/cmdline
+for x in $CMDLINE; do
+        case $x in
+        psplash=false)
+		echo "Boot splashscreen disabled" 
+		exit 0;
+                ;;
+        esac
+done
+
+export TMPDIR=/mnt/.psplash
+mount tmpfs -t tmpfs $TMPDIR -o,size=40k
+
+rotation=0
+if [ -e /etc/rotation ]; then
+	read rotation < /etc/rotation
+fi
+
+FBDEV=/dev/fb1 /usr/bin/psplash --angle $rotation --fbdev 1 2>/dev/kmsg 1>/dev/kmsg &
+
+# If you want to use default HDMI framebuffer /dev/fb0:
+#/usr/bin/psplash --angle $rotation  2>/dev/kmsg 1>/dev/kmsg &
+

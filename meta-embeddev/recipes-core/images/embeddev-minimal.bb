@@ -193,7 +193,7 @@ PACKAGES_NETWORK_append = " connman "
 
 # Init Scripts ###############################################################################
 
-PACKAGES_CUSTOM_append = " initscriptrpidisplay "
+PACKAGES_CUSTOM_append = " initscriptrpidisplay initdisplaydrivers "
 
 # Image Generation ###########################################################################
 

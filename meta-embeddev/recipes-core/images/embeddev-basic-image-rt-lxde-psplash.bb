@@ -77,7 +77,6 @@ PACKAGES_DESKTOP_append = " \
                            gdk-pixbuf-loader-xpm \
                            shared-mime-info \
                            adwaita-icon-theme-symbolic \
-                           udev \
                            "
 
 # Kernel and Boot ###########################################################################
@@ -197,7 +196,7 @@ SPLASH = "psplash-raspberrypi"
 
 # Init Scripts ###############################################################################
 
-PACKAGES_CUSTOM_append = " initscriptrpidisplay "
+PACKAGES_CUSTOM_append = " initdisplaydrivers initscriptrpidisplay "
 
 # Image Generation ###########################################################################
 
