@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 ### BEGIN INIT INFO
 # Provides:             psplash
 # Required-Start:
@@ -15,14 +15,14 @@ printf "                    Welcome to                \n" 1> /dev/kmsg
 printf "           E M B E D D E V   L I N U X        \n" 1> /dev/kmsg
 printf "                                              \n" 1> /dev/kmsg
 printf "      ----------------------------------------\n\n" 1> /dev/kmsg
- 
-echo "" 
-echo "      ----------------------------------------" 
-echo "                                              " 
-echo "                    Welcome to                " 
-echo "           E M B E D D E V   L I N U X        " 
-echo "                                              " 
-echo "      ----------------------------------------" 
+
+echo ""
+echo "      ----------------------------------------"
+echo "                                              "
+echo "                    Welcome to                "
+echo "           E M B E D D E V   L I N U X        "
+echo "                                              "
+echo "      ----------------------------------------"
 
 # Load modules.....
 #modprobe spidev 2> /dev/kmsg
@@ -35,10 +35,10 @@ export FBDEV=/dev/fb1
 #cat /dev/kmsg
 
 # Wait until framebuffer is available..
-#while [ ! -e /dev/fb1 ]
-#do
-#  sleep 1
-#done
+while [ ! -e /dev/fb1 ]
+do
+  sleep 0.1
+done
 
 if [ -e /dev/fb1 ]; then
     printf "/dev/fb1 exists!" 1> /dev/kmsg
@@ -54,7 +54,7 @@ read CMDLINE < /proc/cmdline
 for x in $CMDLINE; do
         case $x in
         psplash=false)
-		echo "Boot splashscreen disabled" 
+		echo "Boot splashscreen disabled"
 		exit 0;
                 ;;
         esac
@@ -72,4 +72,3 @@ FBDEV=/dev/fb1 /usr/bin/psplash --angle $rotation --fbdev 1 2>/dev/kmsg 1>/dev/k
 
 # If you want to use default HDMI framebuffer /dev/fb0:
 #/usr/bin/psplash --angle $rotation  2>/dev/kmsg 1>/dev/kmsg &
-

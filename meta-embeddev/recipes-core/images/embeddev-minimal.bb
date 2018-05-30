@@ -47,11 +47,10 @@ DESCRIPTION = "Embeddev Basic Realtime Image with Psplash, Tuned for Raspberry P
 # Core #######################################################################################
 # Base this image on core-image-minimal
 include recipes-core/images/core-image-minimal.bb
-
 #x11
 DISTRO_FEATURES_append = " systemd wiringPi"
 
-#packagegroup-core-x11
+# packagegroup-core-x11
 PACKAGES_CORE_append = " \
                        packagegroup-core-boot \
                        "
@@ -78,7 +77,6 @@ PACKAGES_DESKTOP_append = " \
                            gdk-pixbuf-loader-xpm \
                            shared-mime-info \
                            adwaita-icon-theme-symbolic \
-                           udev \
                            "
 
 # Kernel and Boot ###########################################################################
@@ -111,19 +109,19 @@ python () {
     if d.getVar("PREFERRED_PROVIDER_virtual/kernel") != "linux-raspberrypi-rt" and d.getVar("PREFERRED_PROVIDER_virtual/kernel") != "linux-raspberrypi-rt-dev":
         raise bb.parse.SkipPackage("Set PREFERRED_PROVIDER_virtual/kernel to linux-raspberrypi-rt to enable it")
 }
-PACKAGES_RPI_append = " \
-                  linux-firmware-bcm43430 \
-                  rt-tests \
-                  hwlatdetect \
-                  ntp \
-                  wpa-supplicant \
-                  iw \
-                  wireless-tools \
-                 "
+#PACKAGES_RPI_append = " \
+#                  linux-firmware-bcm43430 \
+#                  rt-tests \
+#                  hwlatdetect \
+#                  ntp \
+#                  wpa-supplicant \
+#                  iw \
+#                  wireless-tools \
+#                 "
 
 # Package Management ###########################################################################
 
-IMAGE_FEATURES_append = " package-management "
+#IMAGE_FEATURES_append = " package-management "
 #Change PACKAGE_CLASSES to package_deb in local.conf
 #IMAGE_INSTAPP_append = " apt "
 
@@ -140,8 +138,8 @@ ENABLE_UART = "1"
 
 PACKAGES_UTILITY_append = " nano git cmake packagegroup-qt5-toolchain-target dbus "
 #Framebuffer driver for tft
-PACKAGES_UTILITY_append = " xf86-video-fbdev"
-PACKAGES_UTILITY_append = " chkconfig glibc glibc-utils localedef base-passwd pkgconfig"
+#PACKAGES_UTILITY_append = " xf86-video-fbdev"
+#PACKAGES_UTILITY_append = " chkconfig glibc glibc-utils localedef base-passwd pkgconfig"
 PACKAGES_RPI_append = " wiringpi"
 
 #Important for deployment - both host and target should have this!
@@ -152,6 +150,11 @@ PACKAGES_UTILITY_append = " rsync "
 PACKAGES_NETWORK_append = " connman "
 
 # Splash Screen ################################################################################
+# Common
+IMAGE_FEATURES += "splash"
+
+# Use psplash splash screen
+SPLASH = "psplash-raspberrypi"
 
 #Switch from psplash to Plymouth Splash screen
 #SPLASH = "plymouth"
@@ -193,7 +196,7 @@ PACKAGES_NETWORK_append = " connman "
 
 # Init Scripts ###############################################################################
 
-PACKAGES_CUSTOM_append = " initscriptrpidisplay initdisplaydrivers "
+PACKAGES_CUSTOM_append = " initdisplaydrivers initscriptrpidisplay "
 
 # Image Generation ###########################################################################
 
@@ -223,7 +226,7 @@ TOOLCHAIN_TARGET_TASK_append = " cmake wiringpi-dev glibc glibc-utils"
 #EXTRA_IMAGE_FEATURES_append = " tools-debug tools-profile "
 
 # Image Install ##############################################################################
-#                       ${PACKAGES_DESKTOP}
+# ${PACKAGES_DESKTOP}
 IMAGE_INSTALL_append = " \
                        ${PACKAGES_CORE} \
                        ${PACKAGES_KERNEL} \

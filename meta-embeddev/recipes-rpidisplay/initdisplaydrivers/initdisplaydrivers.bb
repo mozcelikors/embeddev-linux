@@ -30,7 +30,7 @@ INITSCRIPT_NAME = "zinitdisplaydriversscript"
 # As a tradition, the shutdown number should be 100-startup_number.  That
 # way scripts are stopped in the reverse order they were started in.  Since
 # our startup number here is 90, the shutdown number will be 100-90 or 10.
-INITSCRIPT_PARAMS = "start 5 S . stop 20 0 1 6 ."
+INITSCRIPT_PARAMS = "start 4 S . stop 20 0 1 6 ."
 
 RDEPENDS_${PN}_append = " bash "
 

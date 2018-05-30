@@ -136,7 +136,7 @@ ENABLE_UART = "1"
 
 # Basics #######################################################################################
 
-PACKAGES_UTILITY_append = " nano git cmake packagegroup-qt5-toolchain-target dbus "
+PACKAGES_UTILITY_append = " nano git cmake dbus "
 #Framebuffer driver for tft
 PACKAGES_UTILITY_append = " xf86-video-fbdev"
 PACKAGES_UTILITY_append = " chkconfig glibc glibc-utils localedef base-passwd pkgconfig"
@@ -145,6 +145,12 @@ PACKAGES_RPI_append = " wiringpi"
 #Important for deployment - both host and target should have this!
 PACKAGES_UTILITY_append = " rsync "
 
+PACKAGES_UTILITY_append = " opencv raspicam i2c-tools rpi-config "
+
+# Qt ####################################################################################
+
+PACKAGES_UTILITY_append = "  packagegroup-qt5-toolchain-target  "
+PACKAGECONFIG_remove_pn-qtbase = " tests "
 # Network ###############################################################################
 # or networkmanager
 PACKAGES_NETWORK_append = " connman "
@@ -220,6 +226,8 @@ PACKAGES_CUSTOM_append = " initdisplaydrivers initscriptrpidisplay "
 #CMake conflicts with the qt packagegroup, cmake is a must, when qt packagegroup is$
 TOOLCHAIN_HOST_TASK_append = " nativesdk-cmake nativesdk-glibc nativesdk-cmake-dev "
 TOOLCHAIN_TARGET_TASK_append = " cmake wiringpi-dev glibc glibc-utils"
+TOOLCHAIN_TARGET_TASK_append = " opencv-dev raspicam-dev i2c-tools-dev "
+
 
 # Debugging ##################################################################################
 
