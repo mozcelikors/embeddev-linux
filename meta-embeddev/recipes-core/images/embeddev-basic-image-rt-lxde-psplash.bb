@@ -47,8 +47,11 @@ DESCRIPTION = "Embeddev Basic Realtime Image with Psplash, Tuned for Raspberry P
 # Core #######################################################################################
 # Base this image on core-image-minimal
 include recipes-core/images/core-image-minimal.bb
+inherit distro_features_check
 
-DISTRO_FEATURES_append = "x11 systemd wiringPi"
+# Add following to layer.conf if you want to enable systemd
+#DISTRO_FEATURES_append = "x11 systemd wiringPi"
+#IMAGE_INSTALL_append = " systemd "
 
 PACKAGES_CORE_append = " \
                        packagegroup-core-boot \
@@ -146,6 +149,11 @@ PACKAGES_RPI_append = " wiringpi"
 PACKAGES_UTILITY_append = " rsync "
 
 PACKAGES_UTILITY_append = " opencv raspicam i2c-tools rpi-config "
+
+# USB auto mount
+# udev-extraconf or systemd-udev
+# The following is very important for USB block device auto-mounting!!..
+PACKAGES_UTILITY_append = " udev-extraconf "
 
 # Qt ####################################################################################
 
